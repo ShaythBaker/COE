@@ -65,7 +65,7 @@ This document explains how to:
 1. Install:
 
    ```bash
-   cd frontend
+   cd Admin
    npm install
    ```
 
