@@ -3,6 +3,9 @@ import React, { useEffect, useRef } from "react";
 
 import { usePermissions } from "../../helpers/usePermissions";
 
+//for hr roles
+import { isHrAdminOrSysAdmin } from "../../helpers/auth_helper";
+
 // //Import Scrollbar
 import SimpleBar from "simplebar-react";
 
@@ -17,6 +20,7 @@ import { useCallback } from "react";
 
 const SidebarContent = (props) => {
   const { isAccessAdmin, hasModule } = usePermissions();
+  const canSeeHr = hasModule("HR_USERS"); // module-based visibility
   const ref = useRef();
   const path = useLocation();
 
@@ -181,8 +185,30 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
+         {hasModule("HR_USERS") && (
+        <li>
+          <Link to="/#" className="has-arrow">
+            <i className="bx bx-user"></i>
+            <span>{props.t("Human Resource")}</span>
+          </Link>
+
+          <ul className="sub-menu" aria-expanded="false">
+            <li>
+              <Link to="/hr/users">
+                {props.t("Employees")}
+              </Link>
+            </li>
+
+            <li>
+              <Link to="/hr/users/create">
+                {props.t("Add Employee")}
+              </Link>
+            </li>
+          </ul>
+        </li>
+      )}
             <li className="menu-title">{props.t("Apps")}</li>
-            {hasModule("ACCESS_ROLES") && ( 
+            {hasModule("ACCESS_ROLES") && (
               <li>
                 <Link to="/calendar" className=" ">
                   <i className="bx bx-calendar"></i>

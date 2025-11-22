@@ -68,8 +68,6 @@ async function login(req, res) {
     const email = req.body.email || req.body.EMAIL;
     const password = req.body.password || req.body.PASSWORD;
 
-    console;email.log("Login API has been called")
-
     if (!email || !password) {
       return res.status(400).json({
         status: false,

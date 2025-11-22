@@ -15,6 +15,13 @@ export const POST_EDIT_PROFILE = "/post-fake-profile";
 // Access / permissions
 export const GET_MY_PERMISSIONS = "/api/access/my-permissions";
 
+// HR
+export const GET_HR_ROLES = "/api/hr/roles";
+export const CREATE_HR_EMPLOYEE = "/api/hr/employees";
+export const GET_HR_EMPLOYEES = "/api/hr/employees";     // list + create
+export const GET_HR_EMPLOYEE = "/api/hr/employees";      // base for /:id
+
+
 //PRODUCTS
 export const GET_PRODUCTS = "/products";
 export const GET_PRODUCTS_DETAIL = "/product";

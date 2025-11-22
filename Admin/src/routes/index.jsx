@@ -6,6 +6,12 @@ import RequireModule from "../components/Auth/RequireModule";
 // Pages Component
 import Chat from "../pages/Chat/Chat";
 
+// // HR
+
+import HrUsersCreate from "../pages/HR/HrUsersCreate";
+import HrUsersList from "../pages/HR/HrUsersList";
+
+
 // // File Manager
 import FileManager from "../pages/FileManager/index";
 
@@ -184,6 +190,19 @@ const authProtectedRoutes = [
   { path: "/dashboard-crypto", component: <DashboardCrypto /> },
   { path: "/blog", component: <Blog /> },
   { path: "/dashboard-job", component: <DashboardJob /> },
+
+
+  // // HR
+
+  {
+    path: "/hr/users/create",
+    component: <HrUsersCreate />,
+  },
+
+  {
+    path: "/hr/users",
+    component: <HrUsersList />,
+  },
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },

@@ -9,6 +9,10 @@ import Account from "./auth/register/reducer";
 import ForgetPassword from "./auth/forgetpwd/reducer";
 import Profile from "./auth/profile/reducer";
 
+// HR 
+
+import hrEmployees from "./hrEmployees/reducer";
+
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
 
@@ -80,7 +84,8 @@ const rootReducer = combineReducers({
   DashboardCrypto,
   DashboardBlog,
   DashboardJob,
-  Permissions
+  Permissions,
+  hrEmployees
 });
 
 export default rootReducer;
