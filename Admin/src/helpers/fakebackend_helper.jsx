@@ -61,6 +61,34 @@ const postJwtProfile = data => post(url.POST_EDIT_JWT_PROFILE, data);
 
 const postFakeProfile = data => post(url.POST_EDIT_PROFILE, data);
 
+
+// HR roles
+export const getHrRoles = () => get(url.GET_HR_ROLES);
+
+// ========================
+// HR EMPLOYEES / ROLES API
+// ========================
+
+// GET ALL EMPLOYEES
+export const getHrEmployeesApi = () => {
+  return get(url.GET_HR_EMPLOYEES);
+};
+
+// GET SINGLE EMPLOYEE BY ID
+export const getHrEmployeeByIdApi = (userId) => {
+  return get(`${url.GET_HR_EMPLOYEE}/${userId}`);
+};
+
+// GET ROLES
+export const getHrRolesApi = () => {
+  return get("/api/hr/roles");
+};
+
+// CREATE EMPLOYEE
+export const createHrEmployeeApi = (data) => {
+  return post("/api/hr/employees", data);
+};
+
 // Register Method
 const postJwtRegister = (url, data) => {
   return axios
