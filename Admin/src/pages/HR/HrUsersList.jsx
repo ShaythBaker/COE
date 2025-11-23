@@ -14,6 +14,8 @@ import {
   Button,
 } from "reactstrap";
 
+import { Link } from "react-router-dom";   // <-- this line is REQUIRED
+
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 
@@ -60,9 +62,36 @@ const HrUsersListInner = () => {
     }
   };
 
-  const renderInitialsAvatar = (first, last) => {
-    const f = (first || "").charAt(0).toUpperCase();
-    const l = (last || "").charAt(0).toUpperCase();
+  // Build proper src for base64 image or fallback
+  const getProfileImgSrc = (base64) => {
+    if (!base64) return null;
+    // If backend already sends "data:image/...;base64,..." use as is
+    if (base64.startsWith("data:")) return base64;
+    // Otherwise assume JPEG; adjust if you standardize on PNG
+    return `data:image/jpeg;base64,${base64}`;
+  };
+
+  const renderAvatar = (user) => {
+    const imgSrc = getProfileImgSrc(user.PROFILE_IMG);
+
+    if (imgSrc) {
+      return (
+        <div className="avatar-xs d-inline-block me-2">
+          <span className="avatar-title rounded-circle bg-soft-primary text-primary">
+            <img
+              src={imgSrc}
+              alt="avatar"
+              className="rounded-circle avatar-xs"
+              style={{ objectFit: "cover", width: "32px", height: "32px" }}
+            />
+          </span>
+        </div>
+      );
+    }
+
+    // Fallback initials
+    const f = (user.FIRST_NAME || "").charAt(0).toUpperCase();
+    const l = (user.LAST_NAME || "").charAt(0).toUpperCase();
     const initials = `${f}${l}` || "?";
 
     return (
@@ -112,7 +141,7 @@ const HrUsersListInner = () => {
                           <th>Name</th>
                           <th>Email</th>
                           <th>Phone</th>
-                          <th>Department</th>
+                          {/* Department column removed as requested */}
                           <th>Status</th>
                           <th>Created At</th>
                           <th style={{ width: "120px" }}>Actions</th>
@@ -121,7 +150,8 @@ const HrUsersListInner = () => {
                       <tbody>
                         {(employees || []).length === 0 && (
                           <tr>
-                            <td colSpan="8" className="text-center py-4">
+                            {/* colSpan adjusted from 8 to 7 after removing department column */}
+                            <td colSpan="7" className="text-center py-4">
                               No employees found.
                             </td>
                           </tr>
@@ -131,20 +161,23 @@ const HrUsersListInner = () => {
                           <tr key={user.USER_ID}>
                             <td>{index + 1}</td>
                             <td>
-                              {renderInitialsAvatar(
-                                user.FIRST_NAME,
-                                user.LAST_NAME
-                              )}
+                              {renderAvatar(user)}
                               <span>
                                 {user.FIRST_NAME} {user.LAST_NAME}
                               </span>
                             </td>
                             <td>{user.EMAIL}</td>
                             <td>{user.PHONE_NUMBER}</td>
-                            <td>{user.DEPATRMENT_ID}</td>
+                            {/* Department hidden */}
                             <td>{renderStatus(user.ACTIVE_STATUS)}</td>
                             <td>{formatDate(user.CREATED_AT)}</td>
                             <td>
+                              <Link
+                                to={`/hr/users/${user.USER_ID}/edit`}
+                                className="btn btn-light btn-sm me-1"
+                              >
+                                <i className="bx bx-pencil" />
+                              </Link>
                               <Button
                                 size="sm"
                                 color="light"
@@ -153,22 +186,9 @@ const HrUsersListInner = () => {
                               >
                                 <i className="bx bx-show" />
                               </Button>
-                              <Button
-                                size="sm"
-                                color="light"
-                                className="me-1"
-                                disabled
-                              >
-                                <i className="bx bx-pencil" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                color="light"
-                                disabled
-                              >
+                              <Button size="sm" color="light" disabled>
                                 <i className="bx bx-trash" />
                               </Button>
-                              {/* Later you can wire these to /hr/users/:id etc. */}
                             </td>
                           </tr>
                         ))}
