@@ -204,6 +204,11 @@ const SidebarContent = (props) => {
                 {props.t("Add Employee")}
               </Link>
             </li>
+            <li>
+              <Link to="/hr/rules">
+                {props.t("Rule Management")}
+              </Link>
+            </li>
           </ul>
         </li>
       )}
