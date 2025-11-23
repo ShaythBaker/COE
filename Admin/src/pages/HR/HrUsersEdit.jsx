@@ -249,7 +249,6 @@ const HrUsersEditForm = ({
     return `data:image/jpeg;base64,${user.PROFILE_IMG}`;
   });
 
-  // IMPORTANT: same pattern as CREATE — ROLE_IDS are strings
   const initialRoleIds = useMemo(
     () => (userRoles || []).map((r) => String(r.ROLE_ID)),
     [userRoles]
@@ -266,7 +265,7 @@ const HrUsersEditForm = ({
       ACTIVE_STATUS:
         user.ACTIVE_STATUS === 1 || user.ACTIVE_STATUS === "1" ? true : false,
       PROFILE_IMG: user.PROFILE_IMG || null,
-      ROLE_IDS: initialRoleIds, // SAME as create page pattern
+      ROLE_IDS: initialRoleIds,
     },
     validationSchema: Yup.object({
       FIRST_NAME: Yup.string().required("Please enter first name"),
@@ -308,7 +307,6 @@ const HrUsersEditForm = ({
     }
   };
 
-  // EXACTLY same toggle logic as CREATE
   const toggleRole = (roleId) => {
     const idStr = String(roleId);
     const current = validation.values.ROLE_IDS || [];
@@ -498,19 +496,27 @@ const HrUsersEditForm = ({
                     </div>
                   )}
                   {(roles || []).map((role) => (
-                    <div className="form-check mb-1" key={role.ROLE_ID}>
+                    <div
+                      className="form-check mb-1"
+                      key={role.ROLE_ID}
+                      onClick={() => toggleRole(role.ROLE_ID)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <Input
                         type="checkbox"
                         className="form-check-input"
                         id={`role_${role.ROLE_ID}`}
+                        name="ROLE_IDS"
+                        value={String(role.ROLE_ID)}
                         checked={(validation.values.ROLE_IDS || []).includes(
                           String(role.ROLE_ID)
                         )}
-                        onChange={() => toggleRole(role.ROLE_ID)}
+                        readOnly
                       />
                       <Label
                         className="form-check-label"
                         htmlFor={`role_${role.ROLE_ID}`}
+                        style={{ cursor: "pointer" }}
                       >
                         {role.ROLE_NAME}
                       </Label>
