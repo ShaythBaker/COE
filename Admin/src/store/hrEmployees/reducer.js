@@ -1,5 +1,3 @@
-// src/store/hrEmployees/reducer.js
-
 import {
   GET_HR_EMPLOYEES,
   GET_HR_EMPLOYEES_SUCCESS,
@@ -10,6 +8,12 @@ import {
   CREATE_HR_EMPLOYEE,
   CREATE_HR_EMPLOYEE_SUCCESS,
   CREATE_HR_EMPLOYEE_FAIL,
+  GET_HR_EMPLOYEE_DETAIL,
+  GET_HR_EMPLOYEE_DETAIL_SUCCESS,
+  GET_HR_EMPLOYEE_DETAIL_FAIL,
+  UPDATE_HR_EMPLOYEE,
+  UPDATE_HR_EMPLOYEE_SUCCESS,
+  UPDATE_HR_EMPLOYEE_FAIL,
   RESET_HR_EMPLOYEE_FLAGS,
 } from "./actionTypes";
 
@@ -28,6 +32,14 @@ const initialState = {
   creating: false,
   createSuccess: null,
   createError: null,
+
+  // detail/update
+  currentEmployee: null,     // { USER, ROLES } from backend
+  loadingCurrent: false,
+  currentError: null,
+  updating: false,
+  updateSuccess: null,
+  updateError: null,
 };
 
 const hrEmployees = (state = initialState, action) => {
@@ -96,11 +108,57 @@ const hrEmployees = (state = initialState, action) => {
         createError: action.payload,
       };
 
+    // DETAIL
+    case GET_HR_EMPLOYEE_DETAIL:
+      return {
+        ...state,
+        loadingCurrent: true,
+        currentError: null,
+        currentEmployee: null,
+      };
+    case GET_HR_EMPLOYEE_DETAIL_SUCCESS:
+      return {
+        ...state,
+        loadingCurrent: false,
+        currentEmployee: action.payload,
+        currentError: null,
+      };
+    case GET_HR_EMPLOYEE_DETAIL_FAIL:
+      return {
+        ...state,
+        loadingCurrent: false,
+        currentError: action.payload,
+      };
+
+    // UPDATE
+    case UPDATE_HR_EMPLOYEE:
+      return {
+        ...state,
+        updating: true,
+        updateSuccess: null,
+        updateError: null,
+      };
+    case UPDATE_HR_EMPLOYEE_SUCCESS:
+      return {
+        ...state,
+        updating: false,
+        updateSuccess: action.payload,
+        updateError: null,
+      };
+    case UPDATE_HR_EMPLOYEE_FAIL:
+      return {
+        ...state,
+        updating: false,
+        updateError: action.payload,
+      };
+
     case RESET_HR_EMPLOYEE_FLAGS:
       return {
         ...state,
         createSuccess: null,
         createError: null,
+        updateSuccess: null,
+        updateError: null,
       };
 
     default:
