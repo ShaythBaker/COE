@@ -89,6 +89,20 @@ const RuleManagement = () => {
     setEditDraft(null);
   };
 
+  const handleAddModule = () => {
+    const newModule = {
+      MODULE_CODE: "",
+      CAN_VIEW: false,
+      CAN_CREATE: false,
+      CAN_EDIT: false,
+      CAN_DELETE: false,
+    };
+
+    setRules((prev) => [newModule, ...prev]);
+    setEditingIndex(0);
+    setEditDraft(newModule);
+  };
+
   if (loading) {
     return <div className="page-content"><p>Loading...</p></div>;
   }
@@ -108,6 +122,13 @@ const RuleManagement = () => {
           <div className="col-xl-10">
 
             <h4 className="mb-4">Rule Management</h4>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm mb-3"
+              onClick={handleAddModule}
+            >
+              Add Module
+            </button>
 
             <div className="table-responsive">
               <table className="table table-nowrap mb-5">
