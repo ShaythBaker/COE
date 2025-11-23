@@ -122,11 +122,9 @@ const RuleManagement = () => {
           <div className="col-xl-10">
 
             <h4 className="mb-4">Rule Management</h4>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm mb-3"
-              onClick={handleAddModule}
-            >
+
+            <button className="btn btn-primary mb-3" onClick={handleAddModule}>
+              <i className="bx bx-plus me-1" />
               Add Module
             </button>
 
