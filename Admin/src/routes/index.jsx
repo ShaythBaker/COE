@@ -10,7 +10,7 @@ import Chat from "../pages/Chat/Chat";
 
 import HrUsersCreate from "../pages/HR/HrUsersCreate";
 import HrUsersList from "../pages/HR/HrUsersList";
-
+import RuleManagement from "../pages/HR/RuleManagement";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -202,6 +202,11 @@ const authProtectedRoutes = [
   {
     path: "/hr/users",
     component: <HrUsersList />,
+  },
+
+  {
+  path: "/hr/rules",
+  component: <RuleManagement />,
   },
 
   //   //Crypto
