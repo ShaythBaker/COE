@@ -89,6 +89,12 @@ export const createHrEmployeeApi = (data) => {
   return post("/api/hr/employees", data);
 };
 
+// UPDATE EMPLOYEE
+export const updateHrEmployeeApi = (userId, data) => {
+  return put(`${url.GET_HR_EMPLOYEE}/${userId}`, data);
+};
+
+
 // Register Method
 const postJwtRegister = (url, data) => {
   return axios

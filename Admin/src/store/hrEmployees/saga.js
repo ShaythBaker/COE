@@ -5,6 +5,8 @@ import {
   GET_HR_EMPLOYEES,
   GET_HR_ROLES,
   CREATE_HR_EMPLOYEE,
+  GET_HR_EMPLOYEE_DETAIL,
+  UPDATE_HR_EMPLOYEE,
 } from "./actionTypes";
 
 import {
@@ -14,13 +16,18 @@ import {
   getHrRolesFail,
   createHrEmployeeSuccess,
   createHrEmployeeFail,
+  getHrEmployeeDetailSuccess,
+  getHrEmployeeDetailFail,
+  updateHrEmployeeSuccess,
+  updateHrEmployeeFail,
 } from "./actions";
 
 import {
   getHrEmployeesApi,
+  getHrEmployeeByIdApi,
   createHrEmployeeApi,
   getHrRolesApi,
-  // getHrEmployeeByIdApi, // for future view/edit – add when needed
+  updateHrEmployeeApi,
 } from "../../helpers/fakebackend_helper";
 
 // LIST
@@ -65,10 +72,41 @@ function* onCreateHrEmployee({ payload }) {
   }
 }
 
+// DETAIL
+function* onGetHrEmployeeDetail({ payload: userId }) {
+  try {
+    const response = yield call(getHrEmployeeByIdApi, userId);
+    // response is { USER, ROLES }
+    yield put(getHrEmployeeDetailSuccess(response));
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to load employee details";
+    yield put(getHrEmployeeDetailFail(msg));
+  }
+}
+
+// UPDATE
+function* onUpdateHrEmployee({ payload: { userId, data } }) {
+  try {
+    const response = yield call(updateHrEmployeeApi, userId, data);
+    yield put(updateHrEmployeeSuccess(response));
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to update employee";
+    yield put(updateHrEmployeeFail(msg));
+  }
+}
+
 export function* watchHrEmployees() {
   yield takeEvery(GET_HR_EMPLOYEES, onGetHrEmployees);
   yield takeEvery(GET_HR_ROLES, onGetHrRoles);
   yield takeEvery(CREATE_HR_EMPLOYEE, onCreateHrEmployee);
+  yield takeEvery(GET_HR_EMPLOYEE_DETAIL, onGetHrEmployeeDetail);
+  yield takeEvery(UPDATE_HR_EMPLOYEE, onUpdateHrEmployee);
 }
 
 export default function* hrEmployeesSaga() {
