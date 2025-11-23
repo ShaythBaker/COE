@@ -1,75 +1,64 @@
 // src/pages/HR/RuleManagement.jsx
 
 import React from "react";
-import { usePermissions } from "../../helpers/usePermissions"; // <- path is correct based on your error
+import { usePermissions } from "../../helpers/usePermissions";
 
 const RuleManagement = () => {
-  // Read permissions for the current user/role from Redux
   const { loading, error, modules } = usePermissions();
 
   if (loading) {
-    return <div style={{ padding: "24px", color: "white" }}>Loading rules...</div>;
+    return <div className="page-content"><p>Loading...</p></div>;
   }
 
   if (error) {
     return (
-      <div style={{ padding: "24px", color: "red" }}>
-        Error: {error}
+      <div className="page-content">
+        <p style={{ color: "red" }}>Error: {error}</p>
       </div>
     );
   }
 
-  // modules is an array of objects like:
-  // { MODULE_CODE, CAN_VIEW, CAN_CREATE, CAN_EDIT, CAN_DELETE, ... }
   const rules = modules || [];
 
   return (
-    <div style={{ padding: "24px" }}>
-      <h2 style={{ marginBottom: "16px", color: "white" }}>Rule Management</h2>
+    <div className="page-content">
+      <div className="container-fluid">
+        <div className="row justify-content-center">
+          <div className="col-xl-10">
 
-      {rules.length === 0 ? (
-        <p style={{ color: "white" }}>No rules found.</p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            backgroundColor: "#111",
-            color: "white",
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ border: "1px solid #444", padding: "8px" }}>Module Code</th>
-              <th style={{ border: "1px solid #444", padding: "8px" }}>Can View</th>
-              <th style={{ border: "1px solid #444", padding: "8px" }}>Can Create</th>
-              <th style={{ border: "1px solid #444", padding: "8px" }}>Can Edit</th>
-              <th style={{ border: "1px solid #444", padding: "8px" }}>Can Delete</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map((m, index) => (
-              <tr key={index}>
-                <td style={{ border: "1px solid #444", padding: "8px" }}>
-                  {m.MODULE_CODE}
-                </td>
-                <td style={{ border: "1px solid #444", padding: "8px" }}>
-                  {m.CAN_VIEW ? "Yes" : "No"}
-                </td>
-                <td style={{ border: "1px solid #444", padding: "8px" }}>
-                  {m.CAN_CREATE ? "Yes" : "No"}
-                </td>
-                <td style={{ border: "1px solid #444", padding: "8px" }}>
-                  {m.CAN_EDIT ? "Yes" : "No"}
-                </td>
-                <td style={{ border: "1px solid #444", padding: "8px" }}>
-                  {m.CAN_DELETE ? "Yes" : "No"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            <h4 className="mb-4">Rule Management</h4>
+
+            <div className="table-responsive">
+              <table className="table table-nowrap mb-5">
+                <thead className="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Module</th>
+                    <th>Can View</th>
+                    <th>Can Create</th>
+                    <th>Can Edit</th>
+                    <th>Can Delete</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rules.map((m, index) => (
+                    <tr key={m.MODULE_CODE}>
+                      <td>{index + 1}</td>
+                      <td>{m.MODULE_CODE}</td>
+                      <td>{m.CAN_VIEW ? "Yes" : "No"}</td>
+                      <td>{m.CAN_CREATE ? "Yes" : "No"}</td>
+                      <td>{m.CAN_EDIT ? "Yes" : "No"}</td>
+                      <td>{m.CAN_DELETE ? "Yes" : "No"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
