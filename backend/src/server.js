@@ -6,6 +6,7 @@ const authRoutes = require('./modules/auth/auth.routes');
 const hrRoutes = require('./modules/hr/hr.routes');
 const generalRoutes = require('./modules/general/general.routes');
 const accessRoutes = require("./modules/access/access.routes");
+const attachmentsRoutes = require("./modules/attachments/attachments.routes");
 
 const app = express();
 
@@ -18,6 +19,8 @@ app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.url}`);
   next();
 });
+
+app.use("/api/attachments", attachmentsRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/hr', hrRoutes);
