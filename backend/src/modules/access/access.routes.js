@@ -11,21 +11,21 @@ const router = express.Router();
 router.get(
   "/roles",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "VIEW"),
+  checkPermission("HR_USERS", "VIEW"),
   accessController.listRoles
 );
 
 router.post(
   "/roles",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "CREATE"),
+  checkPermission("HR_USERS", "CREATE"),
   accessController.createRole
 );
 
 router.put(
   "/roles/:ROLE_ID",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "EDIT"),
+  checkPermission("HR_USERS", "EDIT"),
   accessController.updateRole
 );
 
@@ -33,21 +33,21 @@ router.put(
 router.get(
   "/modules",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "VIEW"),
+  checkPermission("HR_USERS", "VIEW"),
   accessController.listModules
 );
 
 router.post(
   "/modules",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "CREATE"),
+  checkPermission("HR_USERS", "CREATE"),
   accessController.createModule
 );
 
 router.put(
   "/modules/:MODULE_ID",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "EDIT"),
+  checkPermission("HR_USERS", "EDIT"),
   accessController.updateModule
 );
 
@@ -55,14 +55,14 @@ router.put(
 router.get(
   "/roles/:ROLE_ID/permissions",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "VIEW"),
+  checkPermission("HR_USERS", "VIEW"),
   accessController.getRolePermissions
 );
 
 router.put(
   "/roles/:ROLE_ID/permissions",
   authMiddleware,
-  checkPermission("ACCESS_ROLES", "EDIT"),
+  checkPermission("HR_USERS", "EDIT"),
   accessController.updateRolePermissions
 );
 
