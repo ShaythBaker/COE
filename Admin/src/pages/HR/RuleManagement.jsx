@@ -123,8 +123,9 @@ const RuleManagement = () => {
 
             <h4 className="mb-4">Rule Management</h4>
 
+            
+            <i className="bx bx-plus me-1" />
             <button className="btn btn-primary mb-3" onClick={handleAddModule}>
-              <i className="bx bx-plus me-1" />
               Add Module
             </button>
 
