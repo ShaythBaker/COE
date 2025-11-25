@@ -13,6 +13,10 @@ import {
   Input,
   FormFeedback,
   Form,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 } from "reactstrap";
 
 import * as Yup from "yup";
@@ -25,6 +29,8 @@ import withRouter from "../../components/Common/withRouter";
 import Breadcrumb from "../../components/Common/Breadcrumb";
 
 import avatar from "../../assets/images/users/avatar-1.jpg";
+import Dropzone from "react-dropzone";
+import { usePermissions } from "../../helpers/usePermissions";
 
 import { editProfile, resetProfileFlag } from "/src/store/actions";
 
@@ -43,12 +49,108 @@ const UserProfile = () => {
 
   const { error, success } = useSelector(ProfileProperties);
 
+  const { modules } = usePermissions();
+
   const [idx, setIdx] = useState(1);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+
+  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
+
+  const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState(null);
+
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState(null);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const canManageCategories =
+    modules && Array.isArray(modules)
+      ? modules.some(
+          (m) =>
+            m.MODULE_CODE === "DOCUMENT_CATEGORIES" &&
+            (m.CAN_CREATE || m.CAN_EDIT || m.CAN_VIEW)
+        )
+      : false;
+
+  const fetchDocuments = async (userId) => {
+    // FRONTEND-ONLY: no backend call yet
+    setDocumentsLoading(false);
+    setDocumentsError(null);
+    // Keep whatever is already in `documents`; do not fetch from server.
+  };
+
+  const fetchCategories = async () => {
+    // FRONTEND-ONLY: no backend call yet
+    setCategoriesLoading(false);
+    setCategoriesError(null);
+    // Leave categories as-is; backend will populate in the future.
+  };
+
+  const handleOpenDocumentDialog = () => {
+    setUploadFile(null);
+    setSelectedCategoryId("");
+    setUploadError(null);
+    setIsDocumentDialogOpen(true);
+    fetchCategories();
+  };
+
+  const handleCloseDocumentDialog = () => {
+    if (uploadLoading) return;
+    setIsDocumentDialogOpen(false);
+  };
+
+  const handleDrop = (acceptedFiles) => {
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      setUploadFile(acceptedFiles[0]);
+    }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!uploadFile || !selectedCategoryId) {
+      setUploadError("Please select a category and choose a file.");
+      return;
+    }
+
+    try {
+      setUploadLoading(true);
+      setUploadError(null);
+
+      // FRONTEND-ONLY: create a fake document object in memory
+      const newDoc = {
+        id: Date.now(),
+        file_name: uploadFile.name,
+        category_id: selectedCategoryId,
+        created_at: new Date().toISOString(),
+        // Optional local preview URL (not used for backend)
+        url: URL.createObjectURL(uploadFile),
+      };
+
+      setDocuments((prev) => [...prev, newDoc]);
+
+      setIsDocumentDialogOpen(false);
+      setUploadFile(null);
+      setSelectedCategoryId("");
+    } catch (e) {
+      console.error(e);
+      setUploadError(e.message || "Failed to upload document");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!idx) return;
+    fetchDocuments(idx);
+  }, [idx]);
 
   useEffect(() => {
     const raw = localStorage.getItem("authUser");
@@ -319,6 +421,209 @@ const UserProfile = () => {
               </Form>
             </CardBody>
           </Card>
+
+          <h4 className="card-title mb-4">Documents</h4>
+
+          <Card>
+            <CardBody>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0">User Documents</h5>
+                <Button color="primary" onClick={handleOpenDocumentDialog}>
+                  Add New Document
+                </Button>
+              </div>
+
+              {documentsError && (
+                <Alert color="danger" fade={false}>
+                  {documentsError}
+                </Alert>
+              )}
+
+              {documentsLoading ? (
+                <p>Loading documents...</p>
+              ) : (
+                <>
+                  {documents && documents.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table mb-0">
+                        <thead>
+                          <tr>
+                            <th>File Name</th>
+                            <th>Category</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documents.map((doc) => {
+                            const category =
+                              categories && Array.isArray(categories)
+                                ? categories.find(
+                                    (c) =>
+                                      c.id === doc.category_id ||
+                                      c.ID === doc.category_id
+                                  )
+                                : null;
+
+                            const categoryName =
+                              (category && (category.name || category.NAME)) ||
+                              doc.category_name ||
+                              "-";
+
+                            const createdRaw =
+                              doc.created_at || doc.createdAt || doc.CREATED_AT;
+                            const createdFormatted = createdRaw
+                              ? new Date(createdRaw).toLocaleDateString()
+                              : "-";
+
+                            const fileUrl =
+                              doc.url || doc.file_url || doc.FILE_URL || doc.link;
+
+                            const fileName =
+                              doc.file_name ||
+                              doc.filename ||
+                              doc.name ||
+                              doc.FILE_NAME ||
+                              "Document";
+
+                            return (
+                              <tr key={doc.id || doc.ID || fileName}>
+                                <td>{fileName}</td>
+                                <td>{categoryName}</td>
+                                <td>{createdFormatted}</td>
+                                <td>
+                                  {fileUrl ? (
+                                    <Button
+                                      color="link"
+                                      size="sm"
+                                      onClick={() =>
+                                        window.open(
+                                          fileUrl,
+                                          "_blank",
+                                          "noopener,noreferrer"
+                                        )
+                                      }
+                                    >
+                                      View
+                                    </Button>
+                                  ) : (
+                                    <span className="text-muted">No file</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-muted mb-0">No documents uploaded yet.</p>
+                  )}
+                </>
+              )}
+
+              {categoriesError && (
+                <Alert color="danger" fade={false}>
+                  {categoriesError}
+                </Alert>
+              )}
+              {categoriesLoading && <p>Loading categories...</p>}
+            </CardBody>
+          </Card>
+
+          <Modal isOpen={isDocumentDialogOpen} toggle={handleCloseDocumentDialog}>
+            <ModalHeader toggle={handleCloseDocumentDialog}>
+              Add New Document
+            </ModalHeader>
+            <ModalBody>
+              {categoriesError && (
+                <Alert color="danger" fade={false}>
+                  {categoriesError}
+                </Alert>
+              )}
+
+              <div className="mb-3 d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <Label className="form-label">Category</Label>
+                  <Input
+                    type="select"
+                    value={selectedCategoryId}
+                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id || cat.ID} value={cat.id || cat.ID}>
+                        {cat.name || cat.NAME}
+                      </option>
+                    ))}
+                  </Input>
+                </div>
+                {canManageCategories && (
+                  <Button
+                    color="link"
+                    className="ms-2 mt-4"
+                    onClick={() => {
+                      window.location.href = "/admin/document-categories";
+                    }}
+                  >
+                    Manage Categories
+                  </Button>
+                )}
+              </div>
+
+              {categoriesLoading && <p>Loading categories...</p>}
+
+              <div className="mb-3">
+                <Label className="form-label">File</Label>
+                <Dropzone onDrop={handleDrop} multiple={false}>
+                  {({ getRootProps, getInputProps }) => (
+                    <div className="dropzone">
+                      <div className="dz-message needsclick" {...getRootProps()}>
+                        <input {...getInputProps()} />
+                        {!uploadFile ? (
+                          <>
+                            <div className="mb-3">
+                              <i className="display-4 text-muted bx bx-cloud-upload"></i>
+                            </div>
+                            <h4>Drop file here or click to upload.</h4>
+                          </>
+                        ) : (
+                          <div>
+                            <p className="mb-1">{uploadFile.name}</p>
+                            <p className="text-muted mb-0">
+                              {Math.round(uploadFile.size / 1024)} KB
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Dropzone>
+              </div>
+
+              {uploadError && (
+                <Alert color="danger" fade={false}>
+                  {uploadError}
+                </Alert>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                color="secondary"
+                onClick={handleCloseDocumentDialog}
+                disabled={uploadLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                onClick={handleUploadDocument}
+                disabled={uploadLoading}
+              >
+                {uploadLoading ? "Uploading..." : "Submit"}
+              </Button>
+            </ModalFooter>
+          </Modal>
         </Container>
       </div>
     </React.Fragment>
