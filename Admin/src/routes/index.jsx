@@ -15,6 +15,8 @@ import RuleManagement from "../pages/HR/RuleManagement";
 
 import HrUsersEdit from "../pages/HR/HrUsersEdit";
 
+import Requests from "../pages/HR/Request"; 
+
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -213,9 +215,15 @@ const authProtectedRoutes = [
   },
 
   {
-  path: "/hr/rules",
-  component: <RuleManagement />,
+    path: "/hr/rules",
+    component: <RuleManagement />,
   },
+
+  {
+    path: "/hr/request",
+    component: <Requests />,
+  },
+  
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },
