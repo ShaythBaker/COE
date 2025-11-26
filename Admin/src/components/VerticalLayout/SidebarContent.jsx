@@ -212,6 +212,32 @@ const SidebarContent = (props) => {
           </ul>
         </li>
       )}
+
+<li>
+          <Link to="/#" className="has-arrow">
+            <i className="bx bx-user"></i>
+            <span>{props.t("HR Request")}</span>
+          </Link>
+
+          <ul className="sub-menu" aria-expanded="false">
+            <li>
+              <Link to="/hr/request">
+                {props.t("Request")}
+              </Link>
+            </li>
+
+            {/*<li>
+              <Link to="/hr/users/create">
+                {props.t("Add Employee")}
+              </Link>
+            </li>
+            <li>
+              <Link to="/hr/rules">
+                {props.t("Rule Management")}
+              </Link>
+            </li>*/}
+          </ul>
+        </li>
             <li className="menu-title">{props.t("Apps")}</li>
             {hasModule("ACCESS_ROLES") && (
               <li>
