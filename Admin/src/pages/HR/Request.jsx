@@ -4,7 +4,7 @@ import { Container } from "reactstrap"
 //Import Breadcrumb
 import Breadcrumbs from "../../components/Common/Breadcrumb"
 
-const PagesStarter = () => {
+const Requests = () => {
 
     //meta title
     document.title="Stater Page | Travco - COE - ";
@@ -21,4 +21,4 @@ const PagesStarter = () => {
   )
 }
 
-export default PagesStarter
+export default Requests
