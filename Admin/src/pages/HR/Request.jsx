@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownItem
 } from "reactstrap";
+import Dropzone from "react-dropzone";
 
 import { Link } from "react-router-dom";
 import classnames from "classnames";
@@ -34,6 +35,59 @@ const Requests = () => {
   const [requestTypeOpen, setRequestTypeOpen] = useState(false);
   const [selectedRequestType, setSelectedRequestType] = useState("Select Request Type");
 
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [description, setdescription] = useState("");
+  const [submissionMessage, setSubmissionMessage] = useState("");
+
+  const handleDrop = (acceptedFiles) => {
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      setUploadFile(acceptedFiles[0]);
+    }
+  };
+
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleUploadDocument = async () => {
+    if (!uploadFile) {
+      setUploadError("Please choose a file.");
+      return;
+    }
+
+    try {
+      setUploadLoading(true);
+      setUploadError(null);
+
+      const base64String = await fileToBase64(uploadFile);
+
+      const newDoc = {
+        id: Date.now(),
+        file_name: uploadFile.name,
+        created_at: new Date().toISOString(),
+        base64: base64String,
+      };
+
+      setDocuments((prev) => [...prev, newDoc]);
+
+      setUploadFile(null);
+    } catch (e) {
+      setUploadError(e.message || "Failed to upload document");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   const toggleTab = (tab) => {
     if (tab >= 1 && tab <= 4) {
       setactiveTab(tab);
@@ -41,6 +95,34 @@ const Requests = () => {
         setpassedSteps([...passedSteps, tab]);
       }
     }
+  };
+
+  const handleNextClick = async (e) => {
+    e.preventDefault();
+
+    if (activeTab === 2) {
+      const hadFile = uploadFile !== null;
+      await handleUploadDocument();
+      if (hadFile) {
+        toggleTab(activeTab + 1);
+      }
+      return;
+    }
+
+    if (activeTab === 4) {
+      const payload = {
+        requestType: selectedRequestType,
+        documents,
+        description,
+      };
+
+      console.log("Submitting HR request payload:", payload);
+
+      setSubmissionMessage(JSON.stringify(payload, null, 2));
+      return;
+    }
+
+    toggleTab(activeTab + 1);
   };
 
   return (
@@ -75,7 +157,7 @@ const Requests = () => {
                             onClick={() => setactiveTab(2)}
                             disabled={!passedSteps.includes(2)}
                           >
-                            <span className="number">2.</span> Company Document
+                            <span className="number">2.</span> Supporting Documents
                           </NavLink>
                         </NavItem>
 
@@ -85,7 +167,7 @@ const Requests = () => {
                             onClick={() => setactiveTab(3)}
                             disabled={!passedSteps.includes(3)}
                           >
-                            <span className="number">3.</span> Bank Details
+                            <span className="number">3.</span> Description of Request
                           </NavLink>
                         </NavItem>
 
@@ -95,7 +177,7 @@ const Requests = () => {
                             onClick={() => setactiveTab(4)}
                             disabled={!passedSteps.includes(4)}
                           >
-                            <span className="number">4.</span> Confirm Detail
+                            <span className="number">4.</span> Confirm Details
                           </NavLink>
                         </NavItem>
                       </ul>
@@ -149,53 +231,33 @@ const Requests = () => {
 
                         <TabPane tabId={2}>
                           <Form>
-                            <Row>
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>PAN Card</Label>
-                                  <Input type="text" placeholder="Enter Your PAN No." />
-                                </div>
-                              </Col>
-
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>VAT/TIN No.</Label>
-                                  <Input type="text" placeholder="Enter Your VAT/TIN No." />
-                                </div>
-                              </Col>
-                            </Row>
-
-                            <Row>
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>CST No.</Label>
-                                  <Input type="text" placeholder="Enter Your CST No." />
-                                </div>
-                              </Col>
-
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Service Tax No.</Label>
-                                  <Input type="text" placeholder="Enter Your Service Tax No." />
-                                </div>
-                              </Col>
-                            </Row>
-
-                            <Row>
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Company UIN</Label>
-                                  <Input type="text" placeholder="Enter Your Company UIN" />
-                                </div>
-                              </Col>
-
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Declaration</Label>
-                                  <Input type="text" placeholder="Declaration Details" />
-                                </div>
-                              </Col>
-                            </Row>
+                            <div className="mb-3">
+                              <Label className="form-label">Upload Supporting Documents</Label>
+                              <Dropzone onDrop={handleDrop} multiple={false}>
+                                {({ getRootProps, getInputProps }) => (
+                                  <div className="dropzone">
+                                    <div className="dz-message needsclick" {...getRootProps()}>
+                                      <input {...getInputProps()} />
+                                      {!uploadFile ? (
+                                        <>
+                                          <div className="mb-3">
+                                            <i className="display-4 text-muted bx bx-cloud-upload"></i>
+                                          </div>
+                                          <h4>Drop file here or click to upload.</h4>
+                                        </>
+                                      ) : (
+                                        <div>
+                                          <p className="mb-1">{uploadFile.name}</p>
+                                          <p className="text-muted mb-0">
+                                            {Math.round(uploadFile.size / 1024)} KB
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </Dropzone>
+                            </div>
                           </Form>
                         </TabPane>
 
@@ -204,46 +266,13 @@ const Requests = () => {
                             <Row>
                               <Col lg="6">
                                 <div className="mb-3">
-                                  <Label>Name on Card</Label>
-                                  <Input type="text" placeholder="Enter Name on Card" />
-                                </div>
-                              </Col>
-
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Credit Card Type</Label>
-                                  <select className="form-select">
-                                    <option>Select Card Type</option>
-                                    <option value="AE">American Express</option>
-                                    <option value="VI">Visa</option>
-                                    <option value="MC">MasterCard</option>
-                                    <option value="DI">Discover</option>
-                                  </select>
-                                </div>
-                              </Col>
-                            </Row>
-
-                            <Row>
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Credit Card Number</Label>
-                                  <Input type="text" placeholder="Credit Card Number" />
-                                </div>
-                              </Col>
-
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Card Verification Number</Label>
-                                  <Input type="text" placeholder="Card Verification Number" />
-                                </div>
-                              </Col>
-                            </Row>
-
-                            <Row>
-                              <Col lg="6">
-                                <div className="mb-3">
-                                  <Label>Expiration Date</Label>
-                                  <Input type="text" placeholder="Card Expiration Date" />
+                                  <Label>Description of Request</Label>
+                                  <Input
+                                    type="textarea"
+                                    placeholder="Description of Request"
+                                    value={description}
+                                    onChange={(e) => setdescription(e.target.value)}
+                                  />
                                 </div>
                               </Col>
                             </Row>
@@ -257,10 +286,21 @@ const Requests = () => {
                                 <div className="mb-4">
                                   <i className="mdi mdi-check-circle-outline text-success display-4" />
                                 </div>
-                                <h5>Confirm Detail</h5>
+                                <h5>Confirm Details</h5>
                                 <p className="text-muted">
-                                  If several languages coalesce, the grammar of the resulting…
+                                  If you are sure about the information provided, please click Submit to send your request to HR.
                                 </p>
+                                {submissionMessage && (
+                                  <div className="alert alert-info mt-3 text-start">
+                                    <h6 className="mb-2">Payload to send to backend:</h6>
+                                    <pre
+                                      className="mb-0"
+                                      style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                                    >
+                                      {submissionMessage}
+                                    </pre>
+                                  </div>
+                                )}
                               </div>
                             </Col>
                           </div>
@@ -276,9 +316,9 @@ const Requests = () => {
                           </Link>
                         </li>
 
-                        <li className={activeTab === 4 ? "next disabled" : "next"}>
-                          <Link to="#" onClick={() => toggleTab(activeTab + 1)}>
-                            Next
+                        <li className="next">
+                          <Link to="#" onClick={handleNextClick}>
+                            {activeTab === 4 ? "Submit" : "Next"}
                           </Link>
                         </li>
                       </ul>
