@@ -1,13 +1,12 @@
 // src/pages/HR/RuleManagement.jsx
 
 import React, { useState, useEffect } from "react";
-import { usePermissions } from "../../helpers/usePermissions";
-import { Link } from "react-router-dom";
+
 
 const RuleManagement = () => {
-  const { loading, error, modules } = usePermissions();
-
   const [rules, setRules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleteModalMounted, setIsDeleteModalMounted] = useState(false);
@@ -15,8 +14,67 @@ const RuleManagement = () => {
   const [editDraft, setEditDraft] = useState(null);
 
   useEffect(() => {
-    setRules(modules || []);
-  }, [modules]);
+    const fetchRoles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const apiBase = import.meta.env.VITE_API_URL || "";
+
+        let token = "";
+        try {
+          const raw = localStorage.getItem("authUser");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            token =
+              parsed?.accessToken ||
+              parsed?.access_token ||
+              parsed?.token ||
+              "";
+          }
+        } catch (e) {
+          console.error("Failed to parse authUser from localStorage", e);
+        }
+
+        const response = await fetch(`${apiBase}/api/hr/roles`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load roles");
+        }
+
+        const data = await response.json();
+        const list = data.data || data.roles || data || [];
+
+        const mapped = Array.isArray(list)
+          ? list.map((role) => ({
+              ...role,
+              MODULE_CODE:
+                role.ROLE_NAME || role.role_name || role.name || "",
+              CAN_VIEW: true,
+              CAN_CREATE: true,
+              CAN_EDIT: true,
+              CAN_DELETE: true,
+            }))
+          : [];
+
+        setRules(mapped);
+      } catch (err) {
+        console.error(err);
+        setError(
+          err.message || "Something went wrong while loading HR roles."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoles();
+  }, []);
 
   const handlePermissionChange = (field, value) => {
     if (!editDraft) return;
@@ -74,6 +132,10 @@ const RuleManagement = () => {
   };
 
   const handleCancelEdit = () => {
+    if (editingIndex !== null && rules[editingIndex]?._isNew) {
+      // If this row was just added and not saved, remove it completely
+      setRules((prev) => prev.filter((_, idx) => idx !== editingIndex));
+    }
     setEditingIndex(null);
     setEditDraft(null);
   };
@@ -96,6 +158,7 @@ const RuleManagement = () => {
       CAN_CREATE: false,
       CAN_EDIT: false,
       CAN_DELETE: false,
+      _isNew: true,
     };
 
     setRules((prev) => [newModule, ...prev]);
@@ -114,6 +177,14 @@ const RuleManagement = () => {
       </div>
     );
   }
+
+  const moduleOptions = Array.from(
+    new Set(
+      (rules || [])
+        .map((r) => r.MODULE_CODE)
+        .filter(Boolean)
+    )
+  );
 
   return (
     <div className="page-content">
@@ -147,16 +218,22 @@ const RuleManagement = () => {
                     const isEditing = editingIndex === index;
                     const current = isEditing && editDraft ? editDraft : m;
                     return (
-                      <tr key={m.MODULE_CODE}>
+                      <tr key={m.ROLE_ID || m.id || m.MODULE_CODE || index}>
                         <td>{index + 1}</td>
                         <td>
                           {isEditing ? (
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              value={current.MODULE_CODE}
+                            <select
+                              className="form-select form-select-sm"
+                              value={current.MODULE_CODE || ""}
                               onChange={(e) => handleModuleNameChange(e.target.value)}
-                            />
+                            >
+                              <option value="">Select module</option>
+                              {moduleOptions.map((name, idx) => (
+                                <option key={name || idx} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
                           ) : (
                             m.MODULE_CODE
                           )}

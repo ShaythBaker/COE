@@ -185,59 +185,34 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
-         {hasModule("HR_USERS") && (
-        <li>
-          <Link to="/#" className="has-arrow">
-            <i className="bx bx-user"></i>
-            <span>{props.t("Human Resource")}</span>
-          </Link>
+            {hasModule("HR_USERS") && (
+              <li>
+                {/* Parent item: only toggles, does NOT navigate */}
+                <Link
+                  to="#"
+                  className="has-arrow"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <i className="bx bx-user"></i>
+                  <span>{props.t("Human Resource")}</span>
+                </Link>
 
-          <ul className="sub-menu" aria-expanded="false">
-            <li>
-              <Link to="/hr/users">
-                {props.t("Employees")}
-              </Link>
-            </li>
+                {/* Submenu items: these DO navigate */}
+                <ul className="sub-menu" aria-expanded="false">
+                  <li>
+                    <Link to="/hr/users">{props.t("Employees")}</Link>
+                  </li>
 
-            <li>
-              <Link to="/hr/users/create">
-                {props.t("Add Employee")}
-              </Link>
-            </li>
-            <li>
-              <Link to="/hr/rules">
-                {props.t("Rule Management")}
-              </Link>
-            </li>
-          </ul>
-        </li>
-      )}
+                  <li>
+                    <Link to="/hr/users/create">{props.t("Add Employee")}</Link>
+                  </li>
 
-<li>
-          <Link to="/#" className="has-arrow">
-            <i className="bx bx-user"></i>
-            <span>{props.t("HR Request")}</span>
-          </Link>
-
-          <ul className="sub-menu" aria-expanded="false">
-            <li>
-              <Link to="/hr/request">
-                {props.t("Request")}
-              </Link>
-            </li>
-
-            {/*<li>
-              <Link to="/hr/users/create">
-                {props.t("Add Employee")}
-              </Link>
-            </li>
-            <li>
-              <Link to="/hr/rules">
-                {props.t("Rule Management")}
-              </Link>
-            </li>*/}
-          </ul>
-        </li>
+                  <li>
+                    <Link to="/hr/rules">{props.t("Rule Management")}</Link>
+                  </li>
+                </ul>
+              </li>
+            )}
             <li className="menu-title">{props.t("Apps")}</li>
             {hasModule("ACCESS_ROLES") && (
               <li>
