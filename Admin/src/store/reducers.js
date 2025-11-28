@@ -12,6 +12,7 @@ import Profile from "./auth/profile/reducer";
 // HR 
 
 import hrEmployees from "./hrEmployees/reducer";
+import HrRules from "./HrRules/reducer";
 
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
@@ -85,7 +86,8 @@ const rootReducer = combineReducers({
   DashboardBlog,
   DashboardJob,
   Permissions,
-  hrEmployees
+  hrEmployees,
+  HrRules
 });
 
 export default rootReducer;
