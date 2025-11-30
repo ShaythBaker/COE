@@ -15,6 +15,7 @@ import {
   updateHrRule,
   deleteHrRule,
 } from "../../store/HrRules/actions";
+
 const RuleManagement = () => {
   const dispatch = useDispatch();
 
@@ -26,9 +27,7 @@ const RuleManagement = () => {
     error = null,
   } = hrRulesState || {};
 
-  // --- Local UI state: editing / delete modal / working copy of rules ---
-  // We keep a local copy so the table can behave immediately while Redux/saga
-  // persists to the backend in the background.
+  // --- Local UI state ---
   const [rules, setRules] = useState([]);
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -36,36 +35,37 @@ const RuleManagement = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
 
-  // Set page title once
   useEffect(() => {
     document.title = "Rule Management | Skote - React Admin & Dashboard Template";
   }, []);
 
-  // On first mount, load HR rules from backend via Redux saga
+  // Load rules on first mount
   useEffect(() => {
     dispatch(getHrRules());
-    // We intentionally run this only once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initializedFromStoreRef = useRef(false);
 
-  // Initialize local rules from Redux only once when data first arrives
+  // --- FIXED VERSION ---
   useEffect(() => {
-    if (!storeRules || initializedFromStoreRef.current) return;
+    if (
+      !storeRules ||
+      storeRules.length === 0 ||          // <-- FIX: do NOT initialize on empty data
+      initializedFromStoreRef.current
+    ) {
+      return;
+    }
+
     setRules(storeRules);
     initializedFromStoreRef.current = true;
   }, [storeRules]);
 
-  // Dropdown options for module name, derived from current rules list
+  // Dropdown options for module names
   const moduleOptions = useMemo(
     () =>
       Array.from(
-        new Set(
-          (rules || [])
-            .map((r) => r.MODULE_CODE)
-            .filter(Boolean)
-        )
+        new Set((rules || []).map((r) => r.MODULE_CODE).filter(Boolean))
       ),
     [rules]
   );
@@ -93,9 +93,7 @@ const RuleManagement = () => {
 
   const openDeleteConfirm = (index) => {
     setDeleteIndex(index);
-    // Mount the modal first
     setIsDeleteModalMounted(true);
-    // Then in the next tick, trigger the fade-in by adding "show"
     setTimeout(() => {
       setShowDeleteConfirm(true);
     }, 0);
@@ -106,26 +104,22 @@ const RuleManagement = () => {
 
     const ruleToDelete = rules[deleteIndex];
 
-    // Optimistic UI update
+    // Optimistic UI
     setRules((prev) => prev.filter((_, i) => i !== deleteIndex));
     console.log("Deleted rule at index:", deleteIndex);
 
-    // Dispatch Redux action so saga can call the backend
     if (ruleToDelete) {
       dispatch(deleteHrRule(ruleToDelete));
     }
 
-    // Start fade-out
     setShowDeleteConfirm(false);
-    // After the fade duration, unmount the modal and clear index
     setTimeout(() => {
       setIsDeleteModalMounted(false);
       setDeleteIndex(null);
-    }, 150); // 150ms matches Bootstrap's default modal fade duration
+    }, 150);
   };
 
   const handleCancelDelete = () => {
-    // Start fade-out only
     setShowDeleteConfirm(false);
     setTimeout(() => {
       setIsDeleteModalMounted(false);
@@ -135,7 +129,6 @@ const RuleManagement = () => {
 
   const handleCancelEdit = () => {
     if (editingIndex !== null && rules[editingIndex]?._isNew) {
-      // If this row was just added and not saved, remove it completely
       setRules((prev) => prev.filter((_, idx) => idx !== editingIndex));
     }
     setEditingIndex(null);
@@ -145,16 +138,13 @@ const RuleManagement = () => {
   const handleSaveEdit = () => {
     if (editingIndex === null || !editDraft) return;
 
-    // Optimistic UI update for the table
+    // Optimistic UI update
     setRules((prev) =>
       prev.map((rule, idx) => (idx === editingIndex ? editDraft : rule))
     );
 
     console.log("Saving rule:", editDraft);
 
-    // Dispatch Redux action – saga will call the appropriate helper:
-    // - createHrRule for new rows
-    // - updateHrRule for existing rows
     if (editDraft._isNew) {
       dispatch(createHrRule(editDraft));
     } else {
@@ -175,7 +165,6 @@ const RuleManagement = () => {
       _isNew: true,
     };
 
-    // Prepend the new row to the list and immediately go into edit mode
     setRules((prev) => [newModule, ...prev]);
     setEditingIndex(0);
     setEditDraft(newModule);
@@ -383,16 +372,11 @@ const RuleManagement = () => {
       {isDeleteModalMounted && (
         <>
           <div
-            className={`modal fade ${
-              showDeleteConfirm ? "show d-block" : "d-block"
-            }`}
+            className={`modal fade ${showDeleteConfirm ? "show d-block" : "d-block"}`}
             tabIndex="-1"
             role="dialog"
           >
-            <div
-              className="modal-dialog modal-dialog-centered"
-              role="document"
-            >
+            <div className="modal-dialog modal-dialog-centered" role="document">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Confirm Delete</h5>
@@ -432,9 +416,7 @@ const RuleManagement = () => {
             </div>
           </div>
           <div
-            className={`modal-backdrop fade ${
-              showDeleteConfirm ? "show" : ""
-            }`}
+            className={`modal-backdrop fade ${showDeleteConfirm ? "show" : ""}`}
           />
         </>
       )}

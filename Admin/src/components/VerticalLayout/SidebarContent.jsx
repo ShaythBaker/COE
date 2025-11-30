@@ -212,6 +212,23 @@ const SidebarContent = (props) => {
           </ul>
         </li>
       )}
+
+      {hasModule("ACCESS_ROLE") && (
+  <li>
+    <Link to="/#" className="has-arrow">
+      <i className="bx bx-cog"></i>
+      <span>{props.t("System Configuration")}</span>
+    </Link>
+
+    <ul className="sub-menu" aria-expanded="false">
+      <li>
+        <Link to="/system-configuration/system-lists">
+          {props.t("System Lists")}
+        </Link>
+      </li>
+    </ul>
+  </li>
+)}
             <li className="menu-title">{props.t("Apps")}</li>
             {hasModule("ACCESS_ROLES") && (
               <li>
