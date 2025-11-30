@@ -23,6 +23,7 @@ import dashboardBlogSaga from "./dashboard-blog/saga";
 import dashboardJobSaga from "./dashboard-jobs/saga";
 import PermissionsSaga from "./permissions/saga";
 import hrEmployeesSaga from "./hrEmployees/saga";
+import HrRulesSaga from "./HrRules/saga";
 
 export default function* rootSaga() {
   yield all([
@@ -48,6 +49,7 @@ export default function* rootSaga() {
     fork(dashboardBlogSaga),
     fork(dashboardJobSaga),
     fork(PermissionsSaga),
-    fork(hrEmployeesSaga)
+    fork(hrEmployeesSaga),
+    fork(HrRulesSaga),
   ]);
 }

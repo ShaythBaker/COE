@@ -197,22 +197,36 @@ const SidebarContent = (props) => {
                   <span>{props.t("Human Resource")}</span>
                 </Link>
 
-                {/* Submenu items: these DO navigate */}
-                <ul className="sub-menu" aria-expanded="false">
-                  <li>
-                    <Link to="/hr/users">{props.t("Employees")}</Link>
-                  </li>
+            <li>
+              <Link to="/hr/users/create">
+                {props.t("Add Employee")}
+              </Link>
+            </li>
+            <li>
+              <Link to="/hr/rules">
+                {props.t("Rule Management")}
+              </Link>
+            </li>
+          </ul>
+        </li>
+      )}
 
-                  <li>
-                    <Link to="/hr/users/create">{props.t("Add Employee")}</Link>
-                  </li>
+      {hasModule("ACCESS_ROLE") && (
+  <li>
+    <Link to="/#" className="has-arrow">
+      <i className="bx bx-cog"></i>
+      <span>{props.t("System Configuration")}</span>
+    </Link>
 
-                  <li>
-                    <Link to="/hr/rules">{props.t("Rule Management")}</Link>
-                  </li>
-                </ul>
-              </li>
-            )}
+    <ul className="sub-menu" aria-expanded="false">
+      <li>
+        <Link to="/system-configuration/system-lists">
+          {props.t("System Lists")}
+        </Link>
+      </li>
+    </ul>
+  </li>
+)}
             <li className="menu-title">{props.t("Apps")}</li>
             {hasModule("ACCESS_ROLES") && (
               <li>

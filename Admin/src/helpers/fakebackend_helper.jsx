@@ -81,12 +81,57 @@ export const getHrEmployeeByIdApi = (userId) => {
 
 // GET ROLES
 export const getHrRolesApi = () => {
-  return get("/api/hr/roles");
+  return get(url.GET_HR_ROLES);
+};
+
+// HR RULES (Rule Management) - used by RuleManagement.jsx sagas
+
+// REAL: list rules/roles from backend (GET_ROLES)
+export const getHrRulesApi = () => {
+  return get(url.GET_HR_RULES); // GET /api/hr/roles
+};
+
+/**
+ * NOTE:
+ * For now, backend only exposes GET_ROLES.
+ * There are no real CREATE / UPDATE / DELETE endpoints for roles yet,
+ * so these are implemented as "mock" helpers.
+ * This keeps the structure and lets the UI work without 404 errors.
+ */
+
+// MOCK: create rule locally
+export const createHrRuleApi = async (rule) => {
+  console.log("[HrRules] Mock createHrRuleApi (no backend endpoint yet):", rule);
+  // Simulate backend returning created rule with an id
+  return {
+    data: {
+      ...rule,
+      id: rule.id ?? Date.now(),
+    },
+  };
+};
+
+// MOCK: update rule locally
+export const updateHrRuleApi = async (rule) => {
+  console.log("[HrRules] Mock updateHrRuleApi (no backend endpoint yet):", rule);
+  // Simulate backend returning updated rule
+  return {
+    data: rule,
+  };
+};
+
+// MOCK: delete rule locally
+export const deleteHrRuleApi = async (rule) => {
+  console.log("[HrRules] Mock deleteHrRuleApi (no backend endpoint yet):", rule);
+  // Simulate a successful delete response
+  return {
+    data: { success: true },
+  };
 };
 
 // CREATE EMPLOYEE
 export const createHrEmployeeApi = (data) => {
-  return post("/api/hr/employees", data);
+  return post(url.CREATE_HR_EMPLOYEE, data);
 };
 
 // UPDATE EMPLOYEE
@@ -357,3 +402,5 @@ export {
   onAddReply,
   onAddComment,
 };
+
+

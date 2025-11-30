@@ -1,12 +1,34 @@
 // src/pages/HR/RuleManagement.jsx
+//
+// This page now follows the Skote React structure more strictly:
+// - Data is loaded via Redux + Saga using helpers (see Frontend Documentation).
+// - API calls must be defined in helpers/url_helper.js and helpers/fakebackend_helper.js.
+// - This component is responsible only for UI + local edit/delete/add UI state.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
+// Redux actions for HR Rules (you must create these in src/store/HrRules/actions.js)
+import {
+  getHrRules,
+  createHrRule,
+  updateHrRule,
+  deleteHrRule,
+} from "../../store/HrRules/actions";
 
 const RuleManagement = () => {
+  const dispatch = useDispatch();
+
+  // --- Redux state: source of truth for rules list, loading, error ---
+  const hrRulesState = useSelector((state) => state.HrRules);
+  const {
+    rules: storeRules = [],
+    loading = false,
+    error = null,
+  } = hrRulesState || {};
+
+  // --- Local UI state ---
   const [rules, setRules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleteModalMounted, setIsDeleteModalMounted] = useState(false);
@@ -14,67 +36,39 @@ const RuleManagement = () => {
   const [editDraft, setEditDraft] = useState(null);
 
   useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const apiBase = import.meta.env.VITE_API_URL || "";
-
-        let token = "";
-        try {
-          const raw = localStorage.getItem("authUser");
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            token =
-              parsed?.accessToken ||
-              parsed?.access_token ||
-              parsed?.token ||
-              "";
-          }
-        } catch (e) {
-          console.error("Failed to parse authUser from localStorage", e);
-        }
-
-        const response = await fetch(`${apiBase}/api/hr/roles`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to load roles");
-        }
-
-        const data = await response.json();
-        const list = data.data || data.roles || data || [];
-
-        const mapped = Array.isArray(list)
-          ? list.map((role) => ({
-              ...role,
-              MODULE_CODE:
-                role.ROLE_NAME || role.role_name || role.name || "",
-              CAN_VIEW: true,
-              CAN_CREATE: true,
-              CAN_EDIT: true,
-              CAN_DELETE: true,
-            }))
-          : [];
-
-        setRules(mapped);
-      } catch (err) {
-        console.error(err);
-        setError(
-          err.message || "Something went wrong while loading HR roles."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoles();
+    document.title = "Rule Management | Skote - React Admin & Dashboard Template";
   }, []);
+
+  // Load rules on first mount
+  useEffect(() => {
+    dispatch(getHrRules());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initializedFromStoreRef = useRef(false);
+
+  // --- FIXED VERSION ---
+  useEffect(() => {
+    if (
+      !storeRules ||
+      storeRules.length === 0 ||          // <-- FIX: do NOT initialize on empty data
+      initializedFromStoreRef.current
+    ) {
+      return;
+    }
+
+    setRules(storeRules);
+    initializedFromStoreRef.current = true;
+  }, [storeRules]);
+
+  // Dropdown options for module names
+  const moduleOptions = useMemo(
+    () =>
+      Array.from(
+        new Set((rules || []).map((r) => r.MODULE_CODE).filter(Boolean))
+      ),
+    [rules]
+  );
 
   const handlePermissionChange = (field, value) => {
     if (!editDraft) return;
@@ -99,9 +93,7 @@ const RuleManagement = () => {
 
   const openDeleteConfirm = (index) => {
     setDeleteIndex(index);
-    // Mount the modal first
     setIsDeleteModalMounted(true);
-    // Then in the next tick, trigger the fade-in by adding "show"
     setTimeout(() => {
       setShowDeleteConfirm(true);
     }, 0);
@@ -109,21 +101,25 @@ const RuleManagement = () => {
 
   const handleConfirmDelete = () => {
     if (deleteIndex === null) return;
+
+    const ruleToDelete = rules[deleteIndex];
+
+    // Optimistic UI
     setRules((prev) => prev.filter((_, i) => i !== deleteIndex));
     console.log("Deleted rule at index:", deleteIndex);
-    // TODO: call backend API to delete rule
 
-    // Start fade-out
+    if (ruleToDelete) {
+      dispatch(deleteHrRule(ruleToDelete));
+    }
+
     setShowDeleteConfirm(false);
-    // After the fade duration, unmount the modal and clear index
     setTimeout(() => {
       setIsDeleteModalMounted(false);
       setDeleteIndex(null);
-    }, 150); // 150ms matches Bootstrap's default modal fade duration
+    }, 150);
   };
 
   const handleCancelDelete = () => {
-    // Start fade-out only
     setShowDeleteConfirm(false);
     setTimeout(() => {
       setIsDeleteModalMounted(false);
@@ -133,7 +129,6 @@ const RuleManagement = () => {
 
   const handleCancelEdit = () => {
     if (editingIndex !== null && rules[editingIndex]?._isNew) {
-      // If this row was just added and not saved, remove it completely
       setRules((prev) => prev.filter((_, idx) => idx !== editingIndex));
     }
     setEditingIndex(null);
@@ -142,11 +137,20 @@ const RuleManagement = () => {
 
   const handleSaveEdit = () => {
     if (editingIndex === null || !editDraft) return;
+
+    // Optimistic UI update
     setRules((prev) =>
       prev.map((rule, idx) => (idx === editingIndex ? editDraft : rule))
     );
+
     console.log("Saving rule:", editDraft);
-    // TODO: call backend API here to persist the changes
+
+    if (editDraft._isNew) {
+      dispatch(createHrRule(editDraft));
+    } else {
+      dispatch(updateHrRule(editDraft));
+    }
+
     setEditingIndex(null);
     setEditDraft(null);
   };
@@ -167,7 +171,11 @@ const RuleManagement = () => {
   };
 
   if (loading) {
-    return <div className="page-content"><p>Loading...</p></div>;
+    return (
+      <div className="page-content">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -178,26 +186,15 @@ const RuleManagement = () => {
     );
   }
 
-  const moduleOptions = Array.from(
-    new Set(
-      (rules || [])
-        .map((r) => r.MODULE_CODE)
-        .filter(Boolean)
-    )
-  );
-
   return (
     <div className="page-content">
       <div className="container-fluid">
         <div className="row justify-content-center">
           <div className="col-xl-10">
-
             <h4 className="mb-4">Rule Management</h4>
 
-            
-            <i className="bx bx-plus me-1" />
             <button className="btn btn-primary mb-3" onClick={handleAddModule}>
-              Add Module
+              + Add Role
             </button>
 
             <div className="table-responsive">
@@ -205,7 +202,7 @@ const RuleManagement = () => {
                 <thead className="table-light">
                   <tr>
                     <th>#</th>
-                    <th>Module</th>
+                    <th>Role</th>
                     <th>Can View</th>
                     <th>Can Create</th>
                     <th>Can Edit</th>
@@ -217,6 +214,7 @@ const RuleManagement = () => {
                   {rules.map((m, index) => {
                     const isEditing = editingIndex === index;
                     const current = isEditing && editDraft ? editDraft : m;
+
                     return (
                       <tr key={m.ROLE_ID || m.id || m.MODULE_CODE || index}>
                         <td>{index + 1}</td>
@@ -225,7 +223,9 @@ const RuleManagement = () => {
                             <select
                               className="form-select form-select-sm"
                               value={current.MODULE_CODE || ""}
-                              onChange={(e) => handleModuleNameChange(e.target.value)}
+                              onChange={(e) =>
+                                handleModuleNameChange(e.target.value)
+                              }
                             >
                               <option value="">Select module</option>
                               {moduleOptions.map((name, idx) => (
@@ -244,14 +244,19 @@ const RuleManagement = () => {
                               className="form-select form-select-sm"
                               value={current.CAN_VIEW ? "Yes" : "No"}
                               onChange={(e) =>
-                                handlePermissionChange("CAN_VIEW", e.target.value)
+                                handlePermissionChange(
+                                  "CAN_VIEW",
+                                  e.target.value
+                                )
                               }
                             >
                               <option value="Yes">Yes</option>
                               <option value="No">No</option>
                             </select>
+                          ) : m.CAN_VIEW ? (
+                            "Yes"
                           ) : (
-                            m.CAN_VIEW ? "Yes" : "No"
+                            "No"
                           )}
                         </td>
                         <td>
@@ -260,14 +265,19 @@ const RuleManagement = () => {
                               className="form-select form-select-sm"
                               value={current.CAN_CREATE ? "Yes" : "No"}
                               onChange={(e) =>
-                                handlePermissionChange("CAN_CREATE", e.target.value)
+                                handlePermissionChange(
+                                  "CAN_CREATE",
+                                  e.target.value
+                                )
                               }
                             >
                               <option value="Yes">Yes</option>
                               <option value="No">No</option>
                             </select>
+                          ) : m.CAN_CREATE ? (
+                            "Yes"
                           ) : (
-                            m.CAN_CREATE ? "Yes" : "No"
+                            "No"
                           )}
                         </td>
                         <td>
@@ -276,14 +286,19 @@ const RuleManagement = () => {
                               className="form-select form-select-sm"
                               value={current.CAN_EDIT ? "Yes" : "No"}
                               onChange={(e) =>
-                                handlePermissionChange("CAN_EDIT", e.target.value)
+                                handlePermissionChange(
+                                  "CAN_EDIT",
+                                  e.target.value
+                                )
                               }
                             >
                               <option value="Yes">Yes</option>
                               <option value="No">No</option>
                             </select>
+                          ) : m.CAN_EDIT ? (
+                            "Yes"
                           ) : (
-                            m.CAN_EDIT ? "Yes" : "No"
+                            "No"
                           )}
                         </td>
                         <td>
@@ -292,14 +307,19 @@ const RuleManagement = () => {
                               className="form-select form-select-sm"
                               value={current.CAN_DELETE ? "Yes" : "No"}
                               onChange={(e) =>
-                                handlePermissionChange("CAN_DELETE", e.target.value)
+                                handlePermissionChange(
+                                  "CAN_DELETE",
+                                  e.target.value
+                                )
                               }
                             >
                               <option value="Yes">Yes</option>
                               <option value="No">No</option>
                             </select>
+                          ) : m.CAN_DELETE ? (
+                            "Yes"
                           ) : (
-                            m.CAN_DELETE ? "Yes" : "No"
+                            "No"
                           )}
                         </td>
                         <td>
@@ -329,7 +349,7 @@ const RuleManagement = () => {
                               >
                                 <i className="bx bx-pencil" />
                               </button>
-                              <button 
+                              <button
                                 type="button"
                                 className="btn btn-light btn-sm ms-2"
                                 onClick={() => openDeleteConfirm(index)}
@@ -345,61 +365,61 @@ const RuleManagement = () => {
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </div>
-        {isDeleteModalMounted && (
-          <>
-            <div
-              className={`modal fade ${showDeleteConfirm ? "show d-block" : "d-block"}`}
-              tabIndex="-1"
-              role="dialog"
-            >
-              <div className="modal-dialog modal-dialog-centered" role="document">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">Confirm Delete</h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      aria-label="Close"
-                      onClick={handleCancelDelete}
-                    />
-                  </div>
-                  <div className="modal-body">
-                    <p>
-                      Are you sure you want to delete this rule{" "}
-                      {deleteIndex !== null && rules[deleteIndex]
-                        ? `(${rules[deleteIndex].MODULE_CODE})`
-                        : ""}
-                      ?
-                    </p>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={handleCancelDelete}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={handleConfirmDelete}
-                    >
-                      Delete
-                    </button>
-                  </div>
+
+      {isDeleteModalMounted && (
+        <>
+          <div
+            className={`modal fade ${showDeleteConfirm ? "show d-block" : "d-block"}`}
+            tabIndex="-1"
+            role="dialog"
+          >
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Confirm Delete</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={handleCancelDelete}
+                  />
+                </div>
+                <div className="modal-body">
+                  <p>
+                    Are you sure you want to delete this rule{" "}
+                    {deleteIndex !== null && rules[deleteIndex]
+                      ? `(${rules[deleteIndex].MODULE_CODE})`
+                      : ""}
+                    ?
+                  </p>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleCancelDelete}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleConfirmDelete}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>
-            <div
-              className={`modal-backdrop fade ${showDeleteConfirm ? "show" : ""}`}
-            />
-          </>
-        )}
+          </div>
+          <div
+            className={`modal-backdrop fade ${showDeleteConfirm ? "show" : ""}`}
+          />
+        </>
+      )}
     </div>
   );
 };
