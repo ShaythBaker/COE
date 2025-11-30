@@ -15,9 +15,14 @@ import RuleManagement from "../pages/HR/RuleManagement";
 
 import HrUsersEdit from "../pages/HR/HrUsersEdit";
 
+
 //System Configuration
 
 import SystemLists from "../pages/SystemConfiguration/SystemLists";
+
+import Requests from "../pages/HR/Request"; 
+
+
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -216,9 +221,15 @@ const authProtectedRoutes = [
   },
 
   {
-  path: "/hr/rules",
-  component: <RuleManagement />,
+    path: "/hr/rules",
+    component: <RuleManagement />,
   },
+
+  {
+    path: "/hr/request",
+    component: <Requests />,
+  },
+  
 
   // System Configuration
 

@@ -185,19 +185,17 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
-         {hasModule("HR_USERS") && (
-        <li>
-          <Link to="/#" className="has-arrow">
-            <i className="bx bx-user"></i>
-            <span>{props.t("Human Resource")}</span>
-          </Link>
-
-          <ul className="sub-menu" aria-expanded="false">
-            <li>
-              <Link to="/hr/users">
-                {props.t("Employees")}
-              </Link>
-            </li>
+            {hasModule("HR_USERS") && (
+              <li>
+                {/* Parent item: only toggles, does NOT navigate */}
+                <Link
+                  to="#"
+                  className="has-arrow"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <i className="bx bx-user"></i>
+                  <span>{props.t("Human Resource")}</span>
+                </Link>
 
             <li>
               <Link to="/hr/users/create">

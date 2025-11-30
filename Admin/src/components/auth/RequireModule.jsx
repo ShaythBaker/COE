@@ -30,7 +30,12 @@ const RequireModule = ({ moduleCode, children }) => {
   }
 
   // Debug: uncomment if you want to see what is happening
-  // console.log("RequireModule:", { moduleCode, modules, isAccessAdmin, has: hasModule(moduleCode) });
+  console.log("RequireModule:", {
+    moduleCode,
+    modules,
+    isAccessAdmin,
+    has: hasModule(moduleCode),
+  });
 
   // No permission → 404 page
   if (!hasModule(moduleCode)) {
