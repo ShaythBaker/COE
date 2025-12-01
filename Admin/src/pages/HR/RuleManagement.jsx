@@ -1,14 +1,28 @@
 // src/pages/HR/RuleManagement.jsx
-//
-// This page now follows the Skote React structure more strictly:
-// - Data is loaded via Redux + Saga using helpers (see Frontend Documentation).
-// - API calls must be defined in helpers/url_helper.js and helpers/fakebackend_helper.js.
-// - This component is responsible only for UI + local edit/delete/add UI state.
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-// Redux actions for HR Rules (you must create these in src/store/HrRules/actions.js)
+import {
+  Row,
+  Col,
+  Card,
+  CardBody,
+  CardHeader,
+  Button,
+  Table,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Form,
+  FormGroup,
+  Label,
+  Input,
+} from "reactstrap";
+
+import Breadcrumbs from "../../components/Common/Breadcrumb";
+
 import {
   getHrRules,
   createHrRule,
@@ -16,172 +30,192 @@ import {
   deleteHrRule,
 } from "../../store/HrRules/actions";
 
+import { getAccessModulesApi } from "../../helpers/fakebackend_helper";
+
 const RuleManagement = () => {
   const dispatch = useDispatch();
 
-  // --- Redux state: source of truth for rules list, loading, error ---
-  const hrRulesState = useSelector((state) => state.HrRules);
-  const {
-    rules: storeRules = [],
-    loading = false,
-    error = null,
-  } = hrRulesState || {};
+  const [breadcrumbItems] = useState([
+    { title: "HR", link: "#" },
+    { title: "Rule Management", link: "#" },
+  ]);
 
-  // --- Local UI state ---
-  const [rules, setRules] = useState([]);
-  const [deleteIndex, setDeleteIndex] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleteModalMounted, setIsDeleteModalMounted] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editDraft, setEditDraft] = useState(null);
-
-  useEffect(() => {
-    document.title = "Rule Management | Skote - React Admin & Dashboard Template";
-  }, []);
-
-  // Load rules on first mount
-  useEffect(() => {
-    dispatch(getHrRules());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const initializedFromStoreRef = useRef(false);
-
-  // --- FIXED VERSION ---
-  useEffect(() => {
-    if (
-      !storeRules ||
-      storeRules.length === 0 ||          // <-- FIX: do NOT initialize on empty data
-      initializedFromStoreRef.current
-    ) {
-      return;
-    }
-
-    setRules(storeRules);
-    initializedFromStoreRef.current = true;
-  }, [storeRules]);
-
-  // Dropdown options for module names
-  const moduleOptions = useMemo(
-    () =>
-      Array.from(
-        new Set((rules || []).map((r) => r.MODULE_CODE).filter(Boolean))
-      ),
-    [rules]
+  const { rules = [], loading, error } = useSelector(
+    (state) => state.HrRules || {}
   );
 
-  const handlePermissionChange = (field, value) => {
-    if (!editDraft) return;
-    setEditDraft((prev) => ({
-      ...prev,
-      [field]: value === "Yes",
-    }));
-  };
+  // Modules (departments) coming from /api/access/modules
+  const [modules, setModules] = useState([]);
+  const [modulesLoading, setModulesLoading] = useState(false);
 
-  const handleModuleNameChange = (value) => {
-    if (!editDraft) return;
-    setEditDraft((prev) => ({
-      ...prev,
-      MODULE_CODE: value,
-    }));
-  };
+  // Modal logic
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
 
-  const handleEditClick = (index) => {
-    setEditingIndex(index);
-    setEditDraft(rules[index] ? { ...rules[index] } : null);
-  };
+  const [formValues, setFormValues] = useState({
+    MODULE_ID: "",
+    MODULE_CODE: "",
+    ROLE_NAME: "",
+    CAN_VIEW: true,
+    CAN_CREATE: false,
+    CAN_EDIT: false,
+    CAN_DELETE: false,
+  });
 
-  const openDeleteConfirm = (index) => {
-    setDeleteIndex(index);
-    setIsDeleteModalMounted(true);
-    setTimeout(() => {
-      setShowDeleteConfirm(true);
-    }, 0);
-  };
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
-  const handleConfirmDelete = () => {
-    if (deleteIndex === null) return;
+  useEffect(() => {
+    document.title = "Rule Management | Skote";
+    dispatch(getHrRules());
+    loadModules();
+  }, [dispatch]);
 
-    const ruleToDelete = rules[deleteIndex];
-
-    // Optimistic UI
-    setRules((prev) => prev.filter((_, i) => i !== deleteIndex));
-    console.log("Deleted rule at index:", deleteIndex);
-
-    if (ruleToDelete) {
-      dispatch(deleteHrRule(ruleToDelete));
+  const loadModules = async () => {
+    try {
+      setModulesLoading(true);
+      const res = await getAccessModulesApi();
+      const list = res?.data || res || [];
+      setModules(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error("Failed to load access modules:", e);
+    } finally {
+      setModulesLoading(false);
     }
-
-    setShowDeleteConfirm(false);
-    setTimeout(() => {
-      setIsDeleteModalMounted(false);
-      setDeleteIndex(null);
-    }, 150);
   };
 
-  const handleCancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setTimeout(() => {
-      setIsDeleteModalMounted(false);
-      setDeleteIndex(null);
-    }, 150);
+  const toggleModal = () => {
+    setModalOpen(!modalOpen);
   };
 
-  const handleCancelEdit = () => {
-    if (editingIndex !== null && rules[editingIndex]?._isNew) {
-      setRules((prev) => prev.filter((_, idx) => idx !== editingIndex));
-    }
-    setEditingIndex(null);
-    setEditDraft(null);
+  const toggleDeleteModal = () => {
+    setDeleteModalOpen(!deleteModalOpen);
   };
 
-  const handleSaveEdit = () => {
-    if (editingIndex === null || !editDraft) return;
-
-    // Optimistic UI update
-    setRules((prev) =>
-      prev.map((rule, idx) => (idx === editingIndex ? editDraft : rule))
-    );
-
-    console.log("Saving rule:", editDraft);
-
-    if (editDraft._isNew) {
-      dispatch(createHrRule(editDraft));
-    } else {
-      dispatch(updateHrRule(editDraft));
-    }
-
-    setEditingIndex(null);
-    setEditDraft(null);
-  };
-
-  const handleAddModule = () => {
-    const newModule = {
+  const resetForm = () => {
+    setEditingItem(null);
+    setFormValues({
+      MODULE_ID: "",
       MODULE_CODE: "",
-      CAN_VIEW: false,
+      ROLE_NAME: "",
+      CAN_VIEW: true,
       CAN_CREATE: false,
       CAN_EDIT: false,
       CAN_DELETE: false,
-      _isNew: true,
-    };
-
-    setRules((prev) => [newModule, ...prev]);
-    setEditingIndex(0);
-    setEditDraft(newModule);
+    });
   };
 
-  if (loading) {
-    return (
-      <div className="page-content">
-        <p>Loading...</p>
-      </div>
-    );
+  const handleAddClick = () => {
+    resetForm();
+    setModalOpen(true);
+  };
+
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    setFormValues({
+      MODULE_ID: item.MODULE_ID || "",
+      MODULE_CODE: item.MODULE_CODE || "",
+      ROLE_NAME: item.ROLE_NAME || "",
+      CAN_VIEW: item.CAN_VIEW ?? false,
+      CAN_CREATE: item.CAN_CREATE ?? false,
+      CAN_EDIT: item.CAN_EDIT ?? false,
+      CAN_DELETE: item.CAN_DELETE ?? false,
+    });
+    setModalOpen(true);
+  };
+
+  const handleDeleteClick = (item) => {
+    setItemToDelete(item);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      dispatch(deleteHrRule(itemToDelete));
+    }
+    setItemToDelete(null);
+    setDeleteModalOpen(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    // Special handling for MODULE_ID so we can also populate MODULE_CODE
+    if (name === "MODULE_ID") {
+      const selected = modules.find(
+        (m) => String(m.MODULE_ID) === String(value)
+      );
+      setFormValues((prev) => ({
+        ...prev,
+        MODULE_ID: value,
+        MODULE_CODE: selected?.MODULE_CODE || prev.MODULE_CODE || "",
+      }));
+      return;
+    }
+
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formValues.MODULE_ID || !formValues.ROLE_NAME) return;
+
+    const payload = {
+      ...editingItem,
+      ...formValues,
+    };
+
+    if (editingItem) {
+      dispatch(updateHrRule(payload));
+    } else {
+      dispatch(createHrRule(payload));
+    }
+
+    setModalOpen(false);
+    resetForm();
+  };
+
+  const resolveModuleLabel = (rule) => {
+    if (!modules || modules.length === 0) {
+      // Fallback: show code if we have it
+      return rule.MODULE_CODE || "";
+    }
+
+    // First try by MODULE_ID
+    if (rule.MODULE_ID) {
+      const foundById = modules.find(
+        (m) => String(m.MODULE_ID) === String(rule.MODULE_ID)
+      );
+      if (foundById) {
+        return foundById.MODULE_NAME || foundById.MODULE_CODE;
+      }
+    }
+
+    // Then fallback by MODULE_CODE
+    if (rule.MODULE_CODE) {
+      const foundByCode = modules.find(
+        (m) => m.MODULE_CODE === rule.MODULE_CODE
+      );
+      if (foundByCode) {
+        return foundByCode.MODULE_NAME || foundByCode.MODULE_CODE;
+      }
+    }
+
+    return rule.MODULE_CODE || "";
+  };
+
+  if (loading || modulesLoading) {
+    return <div className="page-content">Loading...</div>;
   }
 
   if (error) {
     return (
       <div className="page-content">
-        <p style={{ color: "red" }}>Error: {error}</p>
+        <p className="text-danger">{error}</p>
       </div>
     );
   }
@@ -189,237 +223,176 @@ const RuleManagement = () => {
   return (
     <div className="page-content">
       <div className="container-fluid">
-        <div className="row justify-content-center">
-          <div className="col-xl-10">
-            <h4 className="mb-4">Rule Management</h4>
+        <Breadcrumbs title="HR" breadcrumbItems={breadcrumbItems} />
 
-            <button className="btn btn-primary mb-3" onClick={handleAddModule}>
-              + Add Role
-            </button>
+        <Row>
+          <Col lg="12">
+            <Card>
+              <CardHeader className="d-flex justify-content-between align-items-center">
+                <h4 className="card-title mb-0">Rule Management</h4>
+                <Button color="primary" onClick={handleAddClick}>
+                  <i className="bx bx-plus me-1" />
+                  Add Role
+                </Button>
+              </CardHeader>
 
-            <div className="table-responsive">
-              <table className="table table-nowrap mb-5">
-                <thead className="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Role</th>
-                    <th>Can View</th>
-                    <th>Can Create</th>
-                    <th>Can Edit</th>
-                    <th>Can Delete</th>
-                    <th style={{ width: "120px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rules.map((m, index) => {
-                    const isEditing = editingIndex === index;
-                    const current = isEditing && editDraft ? editDraft : m;
-
-                    return (
-                      <tr key={m.ROLE_ID || m.id || m.MODULE_CODE || index}>
-                        <td>{index + 1}</td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm"
-                              value={current.MODULE_CODE || ""}
-                              onChange={(e) =>
-                                handleModuleNameChange(e.target.value)
-                              }
-                            >
-                              <option value="">Select module</option>
-                              {moduleOptions.map((name, idx) => (
-                                <option key={name || idx} value={name}>
-                                  {name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            m.MODULE_CODE
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm"
-                              value={current.CAN_VIEW ? "Yes" : "No"}
-                              onChange={(e) =>
-                                handlePermissionChange(
-                                  "CAN_VIEW",
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          ) : m.CAN_VIEW ? (
-                            "Yes"
-                          ) : (
-                            "No"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm"
-                              value={current.CAN_CREATE ? "Yes" : "No"}
-                              onChange={(e) =>
-                                handlePermissionChange(
-                                  "CAN_CREATE",
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          ) : m.CAN_CREATE ? (
-                            "Yes"
-                          ) : (
-                            "No"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm"
-                              value={current.CAN_EDIT ? "Yes" : "No"}
-                              onChange={(e) =>
-                                handlePermissionChange(
-                                  "CAN_EDIT",
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          ) : m.CAN_EDIT ? (
-                            "Yes"
-                          ) : (
-                            "No"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm"
-                              value={current.CAN_DELETE ? "Yes" : "No"}
-                              onChange={(e) =>
-                                handlePermissionChange(
-                                  "CAN_DELETE",
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          ) : m.CAN_DELETE ? (
-                            "Yes"
-                          ) : (
-                            "No"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-success btn-sm me-1"
-                                onClick={handleSaveEdit}
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={handleCancelEdit}
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-light btn-sm"
-                                onClick={() => handleEditClick(index)}
-                              >
-                                <i className="bx bx-pencil" />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-light btn-sm ms-2"
-                                onClick={() => openDeleteConfirm(index)}
-                              >
-                                <i className="bx bx-trash" />
-                              </button>
-                            </>
-                          )}
-                        </td>
+              <CardBody>
+                <div className="table-responsive">
+                  <Table className="table table-bordered table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>#</th>
+                        <th>Module</th>
+                        <th>Role</th>
+                        <th>View</th>
+                        <th>Create</th>
+                        <th>Edit</th>
+                        <th>Delete</th>
+                        <th style={{ width: "140px" }}>Actions</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+                    </thead>
+                    <tbody>
+                      {rules.length > 0 ? (
+                        rules.map((item, index) => (
+                          <tr key={item.id || item.ROLE_ID || index}>
+                            <td>{index + 1}</td>
+                            <td>{resolveModuleLabel(item)}</td>
+                            <td>{item.ROLE_NAME}</td>
+                            <td>{item.CAN_VIEW ? "Yes" : "No"}</td>
+                            <td>{item.CAN_CREATE ? "Yes" : "No"}</td>
+                            <td>{item.CAN_EDIT ? "Yes" : "No"}</td>
+                            <td>{item.CAN_DELETE ? "Yes" : "No"}</td>
+                            <td className="text-center">
+                              <i
+                                className="bx bx-edit text-primary"
+                                style={{ cursor: "pointer", fontSize: "18px" }}
+                                onClick={() => handleEditClick(item)}
+                              />
+                              <i
+                                className="bx bx-trash text-danger ms-3"
+                                style={{ cursor: "pointer", fontSize: "18px" }}
+                                onClick={() => handleDeleteClick(item)}
+                              />
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="8" className="text-center">
+                            No rules defined yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
 
-      {isDeleteModalMounted && (
-        <>
-          <div
-            className={`modal fade ${showDeleteConfirm ? "show d-block" : "d-block"}`}
-            tabIndex="-1"
-            role="dialog"
-          >
-            <div className="modal-dialog modal-dialog-centered" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Confirm Delete</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    aria-label="Close"
-                    onClick={handleCancelDelete}
-                  />
-                </div>
-                <div className="modal-body">
-                  <p>
-                    Are you sure you want to delete this rule{" "}
-                    {deleteIndex !== null && rules[deleteIndex]
-                      ? `(${rules[deleteIndex].MODULE_CODE})`
-                      : ""}
-                    ?
-                  </p>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleCancelDelete}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={handleConfirmDelete}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            className={`modal-backdrop fade ${showDeleteConfirm ? "show" : ""}`}
-          />
-        </>
-      )}
+        {/* Add / Edit Modal */}
+        <Modal isOpen={modalOpen} toggle={toggleModal} centered>
+          <Form onSubmit={handleSubmit}>
+            <ModalHeader toggle={toggleModal}>
+              {editingItem ? "Edit Role" : "Add Role"}
+            </ModalHeader>
+
+            <ModalBody>
+              <FormGroup>
+                <Label>Module</Label>
+                <Input
+                  type="select"
+                  name="MODULE_ID"
+                  value={formValues.MODULE_ID || ""}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select module</option>
+                  {modules.map((m) => (
+                    <option key={m.MODULE_ID} value={m.MODULE_ID}>
+                      {m.MODULE_NAME || m.MODULE_CODE}
+                    </option>
+                  ))}
+                </Input>
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Role Name</Label>
+                <Input
+                  name="ROLE_NAME"
+                  value={formValues.ROLE_NAME}
+                  onChange={handleChange}
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup check>
+                <Input
+                  type="checkbox"
+                  name="CAN_VIEW"
+                  checked={formValues.CAN_VIEW}
+                  onChange={handleChange}
+                />{" "}
+                View
+              </FormGroup>
+              <FormGroup check>
+                <Input
+                  type="checkbox"
+                  name="CAN_CREATE"
+                  checked={formValues.CAN_CREATE}
+                  onChange={handleChange}
+                />{" "}
+                Create
+              </FormGroup>
+              <FormGroup check>
+                <Input
+                  type="checkbox"
+                  name="CAN_EDIT"
+                  checked={formValues.CAN_EDIT}
+                  onChange={handleChange}
+                />{" "}
+                Edit
+              </FormGroup>
+              <FormGroup check>
+                <Input
+                  type="checkbox"
+                  name="CAN_DELETE"
+                  checked={formValues.CAN_DELETE}
+                  onChange={handleChange}
+                />{" "}
+                Delete
+              </FormGroup>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button color="secondary" onClick={toggleModal}>
+                Cancel
+              </Button>
+              <Button type="submit" color="primary">
+                {editingItem ? "Save Changes" : "Add Role"}
+              </Button>
+            </ModalFooter>
+          </Form>
+        </Modal>
+
+        {/* Delete Modal */}
+        <Modal isOpen={deleteModalOpen} toggle={toggleDeleteModal} centered>
+          <ModalHeader toggle={toggleDeleteModal}>Confirm Delete</ModalHeader>
+          <ModalBody>
+            Are you sure you want to delete{" "}
+            <strong>{itemToDelete?.ROLE_NAME}</strong>?
+          </ModalBody>
+          <ModalFooter>
+            <Button color="secondary" onClick={toggleDeleteModal}>
+              Cancel
+            </Button>
+            <Button color="danger" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </ModalFooter>
+        </Modal>
+      </div>
     </div>
   );
 };

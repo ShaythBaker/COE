@@ -25,16 +25,19 @@ import {
   deleteHrRuleApi,
 } from "../../helpers/fakebackend_helper";
 
+/**
+ * Normalize whatever the backend gives us for roles into a "rule" object.
+ * IMPORTANT: keep MODULE_ID + MODULE_CODE separate (no more falling back to ROLE_NAME).
+ */
 const mapRoleToRule = (role, index) => ({
-  id: role.id ?? role.ROLE_ID ?? role.role_id ?? index,
-  MODULE_CODE:
-    role.MODULE_CODE ||
-    role.module_code ||
-    role.ROLE_NAME ||
-    role.role_name ||
-    role.name ||
-    role.code ||
-    "",
+  id: role.ROLE_ID ?? role.id ?? role.role_id ?? index,
+
+  // link to access/modules
+  MODULE_ID: role.MODULE_ID ?? role.module_id ?? null,
+  MODULE_CODE: role.MODULE_CODE ?? role.module_code ?? "",
+
+  ROLE_NAME: role.ROLE_NAME ?? role.role_name ?? role.name ?? "",
+
   CAN_VIEW: role.CAN_VIEW ?? role.canView ?? role.can_view ?? false,
   CAN_CREATE: role.CAN_CREATE ?? role.canCreate ?? role.can_create ?? false,
   CAN_EDIT: role.CAN_EDIT ?? role.canEdit ?? role.can_edit ?? false,
