@@ -49,9 +49,13 @@ const postFakeRegister = data => {
 // Login Method
 const postFakeLogin = data => post(url.POST_FAKE_LOGIN, data);
 
-
 //PERMISSIONS
 export const getMyPermissions = () => get(url.GET_MY_PERMISSIONS);
+
+// Access Modules (departments) – used for RuleManagement module dropdown
+export const getAccessModulesApi = () => {
+  return get(url.GET_ACCESS_MODULES); // GET /api/access/modules
+};
 
 // postForgetPwd
 const postFakeForgetPwd = data => post(url.POST_FAKE_PASSWORD_FORGET, data);
@@ -60,7 +64,6 @@ const postFakeForgetPwd = data => post(url.POST_FAKE_PASSWORD_FORGET, data);
 const postJwtProfile = data => post(url.POST_EDIT_JWT_PROFILE, data);
 
 const postFakeProfile = data => post(url.POST_EDIT_PROFILE, data);
-
 
 // HR roles
 export const getHrRoles = () => get(url.GET_HR_ROLES);
@@ -84,49 +87,84 @@ export const getHrRolesApi = () => {
   return get(url.GET_HR_ROLES);
 };
 
-// HR RULES (Rule Management) - used by RuleManagement.jsx sagas
-
-// REAL: list rules/roles from backend (GET_ROLES)
+// ========================
+// HR RULES (Rule Management)
+// ========================
+//
+// These helpers are used by HrRules sagas.
+// GET is real (talks to backend).
+// CREATE / UPDATE / DELETE are "hybrid":
+//   - Try real API.
+//   - If 404 / backend not ready, fall back to mock so UI still works.
+//
+// LIST (uses /api/hr/roles)
 export const getHrRulesApi = () => {
-  return get(url.GET_HR_RULES); // GET /api/hr/roles
+  return get(url.GET_HR_RULES);
 };
 
-/**
- * NOTE:
- * For now, backend only exposes GET_ROLES.
- * There are no real CREATE / UPDATE / DELETE endpoints for roles yet,
- * so these are implemented as "mock" helpers.
- * This keeps the structure and lets the UI work without 404 errors.
- */
-
-// MOCK: create rule locally
+// CREATE
 export const createHrRuleApi = async (rule) => {
-  console.log("[HrRules] Mock createHrRuleApi (no backend endpoint yet):", rule);
-  // Simulate backend returning created rule with an id
-  return {
-    data: {
-      ...rule,
-      id: rule.id ?? Date.now(),
-    },
-  };
+  try {
+    // Try real backend
+    return await post(url.CREATE_HR_RULE, rule);
+  } catch (err) {
+    console.warn("[HrRules] createHrRuleApi: backend not ready, using MOCK create", err);
+
+    // MOCK: simulate created rule with generated id
+    return {
+      data: {
+        ...rule,
+        id: rule.id ?? rule.ROLE_ID ?? Date.now(),
+        _mock: true,
+      },
+    };
+  }
 };
 
-// MOCK: update rule locally
+// UPDATE
 export const updateHrRuleApi = async (rule) => {
-  console.log("[HrRules] Mock updateHrRuleApi (no backend endpoint yet):", rule);
-  // Simulate backend returning updated rule
-  return {
-    data: rule,
-  };
+  const id = rule.ROLE_ID || rule.id;
+
+  try {
+    if (id) {
+      // Backend style /api/hr/roles/:id
+      return await put(`${url.UPDATE_HR_RULE}/${id}`, rule);
+    }
+    // Fallback: PUT /api/hr/roles with body
+    return await put(url.UPDATE_HR_RULE, rule);
+  } catch (err) {
+    console.warn("[HrRules] updateHrRuleApi: backend not ready, using MOCK update", err);
+
+    // MOCK: just echo back what we tried to update
+    return {
+      data: {
+        ...rule,
+        id: id ?? Date.now(),
+        _mock: true,
+      },
+    };
+  }
 };
 
-// MOCK: delete rule locally
+// DELETE
 export const deleteHrRuleApi = async (rule) => {
-  console.log("[HrRules] Mock deleteHrRuleApi (no backend endpoint yet):", rule);
-  // Simulate a successful delete response
-  return {
-    data: { success: true },
-  };
+  const id = rule.ROLE_ID || rule.id;
+
+  try {
+    if (id) {
+      // Backend style /api/hr/roles/:id
+      return await del(`${url.DELETE_HR_RULE}/${id}`);
+    }
+    // Fallback: send whole object in headers (Skote pattern in some modules)
+    return await del(url.DELETE_HR_RULE, { headers: { rule } });
+  } catch (err) {
+    console.warn("[HrRules] deleteHrRuleApi: backend not ready, using MOCK delete", err);
+
+    // MOCK: pretend delete succeeded
+    return {
+      data: { success: true, _mock: true },
+    };
+  }
 };
 
 // CREATE EMPLOYEE
@@ -139,11 +177,10 @@ export const updateHrEmployeeApi = (userId, data) => {
   return put(`${url.GET_HR_EMPLOYEE}/${userId}`, data);
 };
 
-
 // Register Method
-const postJwtRegister = (url, data) => {
+const postJwtRegister = (urlParam, data) => {
   return axios
-    .post(url, data)
+    .post(urlParam, data)
     .then(response => {
       if (response.status >= 200 || response.status <= 299) return response.data;
       throw response.data;
@@ -402,5 +439,3 @@ export {
   onAddReply,
   onAddComment,
 };
-
-

@@ -1,4 +1,3 @@
-// src/store/HrRules/actionTypes.js
 
 // LIST / LOAD
 export const GET_HR_RULES = "GET_HR_RULES";

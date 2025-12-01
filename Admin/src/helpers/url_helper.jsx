@@ -21,6 +21,9 @@ export const POST_EDIT_PROFILE = "/post-fake-profile";
 // ====================
 export const GET_MY_PERMISSIONS = "/api/access/my-permissions";
 
+// ✅ ACCESS MODULES (Departments for Rule Management Dropdown)
+export const GET_ACCESS_MODULES = "/api/access/modules";
+
 // ====================
 // HR
 // ====================
@@ -30,15 +33,15 @@ export const GET_HR_ROLES = "/api/hr/roles";
 
 // Employees
 export const CREATE_HR_EMPLOYEE = "/api/hr/employees";
-export const GET_HR_EMPLOYEES = "/api/hr/employees";     // list + create
-export const GET_HR_EMPLOYEE = "/api/hr/employees";      // base for /:id
+export const GET_HR_EMPLOYEES = "/api/hr/employees";
+export const GET_HR_EMPLOYEE = "/api/hr/employees";
 
 // ====================
 // HR RULE MANAGEMENT
 // ====================
 
-// ✅ Rule Management must use GET_ROLES from Bruno
-export const GET_HR_RULES   = GET_HR_ROLES;     // ✅ FIXED
+// ✅ Rule Management uses HR Roles endpoint
+export const GET_HR_RULES   = GET_HR_ROLES;
 export const CREATE_HR_RULE = "/api/hr/roles";
 export const UPDATE_HR_RULE = "/api/hr/roles";
 export const DELETE_HR_RULE = "/api/hr/roles";
@@ -127,7 +130,6 @@ export const ADD_NEW_JOB_LIST = "/add/job";
 export const UPDATE_JOB_LIST = "/update/job";
 export const DELETE_JOB_LIST = "/delete/job";
 
-// Apply Jobs
 export const GET_APPLY_JOB = "/jobApply";
 export const DELETE_APPLY_JOB = "add/applyjob";
 
