@@ -95,7 +95,10 @@ const HrUsersEditInner = () => {
             <Col>
               <Card>
                 <CardBody>
-                  <Spinner size="sm" className="me-2" />
+                  <Spinner
+                    size="md"
+                    className="me-4 spinner-border text-success"
+                  />
                   Loading employee...
                 </CardBody>
               </Card>
@@ -586,7 +589,3 @@ const HrUsersEdit = () => (
 );
 
 export default HrUsersEdit;
-
-
-
-

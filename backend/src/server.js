@@ -7,6 +7,7 @@ const hrRoutes = require('./modules/hr/hr.routes');
 const generalRoutes = require('./modules/general/general.routes');
 const accessRoutes = require("./modules/access/access.routes");
 const attachmentsRoutes = require("./modules/attachments/attachments.routes");
+const listsRoutes = require("./modules/lists/lists.routes"); 
 
 const app = express();
 
@@ -25,6 +26,8 @@ app.use("/api/attachments", attachmentsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/hr', hrRoutes);
 app.use('/api/general', generalRoutes);
+app.use('/api/lists', listsRoutes);
+
 
 app.get('/', (req, res) => {
   res.json({ message: 'API is running' });
