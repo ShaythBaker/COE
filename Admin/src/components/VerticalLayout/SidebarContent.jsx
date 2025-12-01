@@ -1,12 +1,12 @@
 import PropTypes from "prop-types";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 
 import { usePermissions } from "../../helpers/usePermissions";
 
-//for hr roles
-import { isHrAdminOrSysAdmin } from "../../helpers/auth_helper";
+// for hr roles
+import { isHrAdminOrSysAdmin } from "../../helpers/auth_helper"; // (still available if you need it)
 
-// //Import Scrollbar
+// Import Scrollbar
 import SimpleBar from "simplebar-react";
 
 // MetisMenu
@@ -14,20 +14,35 @@ import MetisMenu from "metismenujs";
 import { Link, useLocation } from "react-router-dom";
 import withRouter from "../Common/withRouter";
 
-//i18n
+// i18n
 import { withTranslation } from "react-i18next";
-import { useCallback } from "react";
 
 const SidebarContent = (props) => {
   const { isAccessAdmin, hasModule } = usePermissions();
   const canSeeHr = hasModule("HR_USERS"); // module-based visibility
+  const canSeeAdmin = hasModule("ACCESS_ROLE");
   const ref = useRef();
   const path = useLocation();
 
+  const scrollElement = (item) => {
+    if (item && ref.current) {
+      const currentPosition = item.offsetTop;
+      if (currentPosition > window.innerHeight) {
+        const scrollEl = ref.current.getScrollElement();
+        if (scrollEl) {
+          scrollEl.scrollTop = currentPosition - 300;
+        }
+      }
+    }
+  };
+
   const activateParentDropdown = useCallback((item) => {
+    if (!item) return false;
+
     item.classList.add("active");
     const parent = item.parentElement;
-    const parent2El = parent.childNodes[1];
+    const parent2El = parent && parent.childNodes[1];
+
     if (parent2El && parent2El.id !== "side-menu") {
       parent2El.classList.add("mm-show");
     }
@@ -43,14 +58,18 @@ const SidebarContent = (props) => {
 
         if (parent3) {
           parent3.classList.add("mm-active"); // li
-          parent3.childNodes[0].classList.add("mm-active"); //a
+          if (parent3.childNodes[0]) {
+            parent3.childNodes[0].classList.add("mm-active"); // a
+          }
           const parent4 = parent3.parentElement; // ul
           if (parent4) {
             parent4.classList.add("mm-show"); // ul
             const parent5 = parent4.parentElement;
             if (parent5) {
               parent5.classList.add("mm-show"); // li
-              parent5.childNodes[0].classList.add("mm-active"); // a tag
+              if (parent5.childNodes[0]) {
+                parent5.childNodes[0].classList.add("mm-active"); // a tag
+              }
             }
           }
         }
@@ -63,18 +82,20 @@ const SidebarContent = (props) => {
   }, []);
 
   const removeActivation = (items) => {
-    for (var i = 0; i < items.length; ++i) {
-      var item = items[i];
-      const parent = items[i].parentElement;
+    for (let i = 0; i < items.length; ++i) {
+      const item = items[i];
+      const parent = item.parentElement;
 
       if (item && item.classList.contains("active")) {
         item.classList.remove("active");
       }
+
       if (parent) {
         const parent2El =
-          parent.childNodes && parent.childNodes.lenght && parent.childNodes[1]
+          parent.childNodes && parent.childNodes.length && parent.childNodes[1]
             ? parent.childNodes[1]
             : null;
+
         if (parent2El && parent2El.id !== "side-menu") {
           parent2El.classList.remove("mm-show");
         }
@@ -88,7 +109,9 @@ const SidebarContent = (props) => {
           const parent3 = parent2.parentElement;
           if (parent3) {
             parent3.classList.remove("mm-active"); // li
-            parent3.childNodes[0].classList.remove("mm-active");
+            if (parent3.childNodes[0]) {
+              parent3.childNodes[0].classList.remove("mm-active");
+            }
 
             const parent4 = parent3.parentElement; // ul
             if (parent4) {
@@ -96,7 +119,9 @@ const SidebarContent = (props) => {
               const parent5 = parent4.parentElement;
               if (parent5) {
                 parent5.classList.remove("mm-show"); // li
-                parent5.childNodes[0].classList.remove("mm-active"); // a tag
+                if (parent5.childNodes[0]) {
+                  parent5.childNodes[0].classList.remove("mm-active"); // a tag
+                }
               }
             }
           }
@@ -109,6 +134,8 @@ const SidebarContent = (props) => {
     const pathName = path.pathname;
     let matchingMenuItem = null;
     const ul = document.getElementById("side-menu");
+    if (!ul) return;
+
     const items = ul.getElementsByTagName("a");
     removeActivation(items);
 
@@ -118,43 +145,34 @@ const SidebarContent = (props) => {
         break;
       }
     }
+
     if (matchingMenuItem) {
       activateParentDropdown(matchingMenuItem);
     }
   }, [path.pathname, activateParentDropdown]);
 
   useEffect(() => {
-    ref.current.recalculate();
+    ref.current?.recalculate();
   }, []);
 
-  // useEffect(() => {
-  //   new MetisMenu("#side-menu");
-  //   activeMenu();
-  // }, []);
+  // Initialize / re-initialize MetisMenu when module visibility changes
   useEffect(() => {
+    const menuElement = document.getElementById("side-menu");
+    if (!menuElement) return;
+
     const metisMenu = new MetisMenu("#side-menu");
     activeMenu();
 
-    // Cleanup on component unmount
+    // Cleanup on component unmount or when dependencies change
     return () => {
       metisMenu.dispose();
     };
-  }, []);
+  }, [canSeeAdmin, canSeeHr, activeMenu]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     activeMenu();
   }, [activeMenu]);
-
-  function scrollElement(item) {
-    if (item) {
-      const currentPosition = item.offsetTop;
-      if (currentPosition > window.innerHeight) {
-        ref.current.getScrollElement().scrollTop = currentPosition - 300;
-      }
-    }
-  }
-
   return (
     <React.Fragment>
       <SimpleBar className="h-100" ref={ref}>
@@ -185,6 +203,7 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
+
             {hasModule("HR_USERS") && (
   <li>
     {/* Parent item: only toggles, does NOT navigate */}
@@ -214,24 +233,26 @@ const SidebarContent = (props) => {
   </li>
 )}
 
-      {hasModule("ACCESS_ROLE") && (
-  <li>
-    <Link to="/#" className="has-arrow">
-      <i className="bx bx-cog"></i>
-      <span>{props.t("System Configuration")}</span>
-    </Link>
 
-    <ul className="sub-menu" aria-expanded="false">
-      <li>
-        <Link to="/system-configuration/system-lists">
-          {props.t("System Lists")}
-        </Link>
-      </li>
-    </ul>
-  </li>
-)}
+            {/* System Configuration (conditional) */}
+            {canSeeAdmin && (
+              <li>
+                <Link to="#" className="has-arrow">
+                  <i className="bx bx-cog"></i>
+                  <span>{props.t("System Configuration")}</span>
+                </Link>
+
+                <ul className="sub-menu" aria-expanded="false">
+                  <li>
+                    <Link to="/system-configuration/system-lists">
+                      {props.t("System Lists")}
+                    </Link>
+                  </li>
+                </ul>
+              </li>
+            )}
             <li className="menu-title">{props.t("Apps")}</li>
-            {hasModule("ACCESS_ROLES") && (
+            {canSeeAdmin && (
               <li>
                 <Link to="/calendar" className=" ">
                   <i className="bx bx-calendar"></i>
@@ -840,8 +861,8 @@ const SidebarContent = (props) => {
 };
 
 SidebarContent.propTypes = {
+  t: PropTypes.func,
   location: PropTypes.object,
-  t: PropTypes.any,
 };
 
 export default withRouter(withTranslation()(SidebarContent));
