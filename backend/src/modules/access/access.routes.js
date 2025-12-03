@@ -73,4 +73,19 @@ router.get(
   accessController.getMyPermissions
 );
 
+// NEW: create single permission (or upsert)
+router.post(
+  "/roles/:ROLE_ID/permissions",
+  authMiddleware,
+  checkPermission("ACCESS_ROLES", "EDIT"),
+  accessController.createRolePermission
+);
+
+router.put(
+  "/roles/:ROLE_ID/permissions",
+  authMiddleware,
+  checkPermission("ACCESS_ROLES", "EDIT"),
+  accessController.updateRolePermissions
+);
+
 module.exports = router;
