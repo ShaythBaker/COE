@@ -1,6 +1,7 @@
 // src/modules/attachments/attachments.controller.js
 const dbService = require("../../core/dbService");
 const pool = require("../../core/db");
+const { uploadBufferToS3 } = require("../../core/s3");
 
 const ATTACHMENTS_TABLE = "COE_TBL_ATTACHMENTS";
 const FAR_FUTURE_ENDA = "9999-12-31 00:00:00";
@@ -91,34 +92,36 @@ async function getAttachmentById(req, res) {
 /**
  * POST /api/attachments
  *
- * BODY:
- * {
- *   "FILE_NAME": "file.pdf",
- *   "FILE_URL": "/path/file.pdf",
- *   "FILE_TYPE": "application/pdf",
- *   "USER_ID": "12345",
- *   "FILE_CATEGORY": "CV"
- * }
+ * Content-Type: multipart/form-data
+ * Fields:
+ *   file           -> the uploaded file (required)
+ *   USER_ID        -> user ID (required)
+ *   FILE_CATEGORY  -> optional category, e.g. "CV"
+ *   FILE_NAME      -> optional custom display name; defaults to original filename
  *
  * Rules:
+ * - File is uploaded to S3.
+ * - FILE_URL = S3 public URL
+ * - FILE_TYPE = file.mimetype
  * - CREATED_BY = session user (req.user.USER_ID)
- * - BEGDA = NOW() (always, frontend should NOT send it)
+ * - BEGDA = NOW()
  * - ENDA  = 9999-12-31 00:00:00
  */
 async function createAttachment(req, res) {
   try {
+    const file = req.file;
     const {
-      FILE_NAME,
-      FILE_URL,
-      FILE_TYPE,
       USER_ID,
       FILE_CATEGORY,
+      FILE_NAME, // optional custom label
     } = req.body;
 
-    if (!FILE_NAME || !FILE_URL || !FILE_TYPE || !USER_ID) {
-      return res.status(400).json({
-        message: "FILE_NAME, FILE_URL, FILE_TYPE, and USER_ID are required",
-      });
+    if (!file) {
+      return res.status(400).json({ message: "file is required" });
+    }
+
+    if (!USER_ID) {
+      return res.status(400).json({ message: "USER_ID is required" });
     }
 
     const userFromToken = req.user;
@@ -128,20 +131,34 @@ async function createAttachment(req, res) {
 
     const now = new Date();
 
+    // Upload to S3
+    const { originalname, mimetype, buffer } = file;
+
+    const uploadResult = await uploadBufferToS3({
+      buffer,
+      mimeType: mimetype,
+      userId: USER_ID,
+      originalName: originalname,
+      category: FILE_CATEGORY,
+    });
+
+    const dbFileName = FILE_NAME || originalname || "file";
+
     const result = await dbService.insert(ATTACHMENTS_TABLE, {
-      FILE_NAME,
-      FILE_URL,
-      FILE_TYPE,
+      FILE_NAME: dbFileName,
+      FILE_URL: uploadResult.url,
+      FILE_TYPE: mimetype,
       USER_ID,
       FILE_CATEGORY: FILE_CATEGORY || null,
       CREATED_BY: userFromToken.USER_ID,
-      BEGDA: now,               // always current time
-      ENDA: FAR_FUTURE_ENDA,    // open-ended validity
+      BEGDA: now,
+      ENDA: FAR_FUTURE_ENDA,
     });
 
     return res.status(201).json({
       message: "Attachment created",
       FILE_ID: result.insertId,
+      FILE_URL: uploadResult.url,
     });
   } catch (err) {
     console.error("createAttachment error:", err);
@@ -158,14 +175,17 @@ async function createAttachment(req, res) {
  * - Then insert a NEW row with updated data and:
  *     BEGDA = NOW(), ENDA = 9999-12-31 00:00:00
  *
- * BODY: any subset of
+ * Content-Type: multipart/form-data
+ * BODY: any subset of fields + optional file:
  * {
+ *   file: (optional new file),
  *   "FILE_NAME": "...",
- *   "FILE_URL": "...",
- *   "FILE_TYPE": "...",
  *   "USER_ID": "...",
  *   "FILE_CATEGORY": "..."
  * }
+ *
+ * If a new file is present, it is uploaded to S3 and new FILE_URL/FILE_TYPE are used.
+ * Otherwise, old FILE_URL/FILE_TYPE are preserved.
  */
 async function updateAttachment(req, res) {
   try {
@@ -199,33 +219,55 @@ async function updateAttachment(req, res) {
     await dbService.update(
       ATTACHMENTS_TABLE,
       {
-        ENDA: now,                      // delimits the old record
-        UPDATED_BY: userFromToken.USER_ID, // logged-in user
-        UPDATED_ON: now,                // same as ENDA
+        ENDA: now,
+        UPDATED_BY: userFromToken.USER_ID,
+        UPDATED_ON: now,
       },
       { FILE_ID }
     );
 
     // Step 2: insert the new record
-    // Body can contain any subset of fields; fallback to old values if not provided
+    const file = req.file;
     const {
       FILE_NAME,
-      FILE_URL,
-      FILE_TYPE,
       USER_ID,
       FILE_CATEGORY,
     } = req.body;
 
+    let newFileName = oldRow.FILE_NAME;
+    let newFileUrl = oldRow.FILE_URL;
+    let newFileType = oldRow.FILE_TYPE;
+
+    // If a new file is uploaded, push it to S3
+    if (file) {
+      const { originalname, mimetype, buffer } = file;
+
+      const uploadResult = await uploadBufferToS3({
+        buffer,
+        mimeType: mimetype,
+        userId: USER_ID || oldRow.USER_ID,
+        originalName: originalname,
+        category: FILE_CATEGORY || oldRow.FILE_CATEGORY,
+      });
+
+      newFileName = FILE_NAME || originalname || oldRow.FILE_NAME;
+      newFileUrl = uploadResult.url;
+      newFileType = mimetype;
+    } else {
+      // No new file – only metadata update
+      if (FILE_NAME !== undefined) newFileName = FILE_NAME;
+    }
+
     const newRow = {
-      FILE_NAME: FILE_NAME !== undefined ? FILE_NAME : oldRow.FILE_NAME,
-      FILE_URL: FILE_URL !== undefined ? FILE_URL : oldRow.FILE_URL,
-      FILE_TYPE: FILE_TYPE !== undefined ? FILE_TYPE : oldRow.FILE_TYPE,
+      FILE_NAME: newFileName,
+      FILE_URL: newFileUrl,
+      FILE_TYPE: newFileType,
       USER_ID: USER_ID !== undefined ? USER_ID : oldRow.USER_ID,
       FILE_CATEGORY:
         FILE_CATEGORY !== undefined ? FILE_CATEGORY : oldRow.FILE_CATEGORY,
       CREATED_BY: userFromToken.USER_ID, // who created this new version
-      BEGDA: now,                        // current time for new record
-      ENDA: FAR_FUTURE_ENDA,             // open-ended
+      BEGDA: now,
+      ENDA: FAR_FUTURE_ENDA,
     };
 
     const insertResult = await dbService.insert(ATTACHMENTS_TABLE, newRow);
@@ -234,6 +276,7 @@ async function updateAttachment(req, res) {
       message: "Attachment updated (old record delimited, new record inserted)",
       OLD_FILE_ID: FILE_ID,
       NEW_FILE_ID: insertResult.insertId,
+      FILE_URL: newRow.FILE_URL,
     });
   } catch (err) {
     console.error("updateAttachment error:", err);
@@ -246,6 +289,7 @@ async function updateAttachment(req, res) {
  *
  * Logical delete:
  * - Only sets ENDA = NOW(), UPDATED_ON = NOW()
+ * - (S3 object is NOT deleted — you can add that later if needed.)
  */
 async function deleteAttachment(req, res) {
   try {

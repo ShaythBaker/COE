@@ -4,6 +4,111 @@ const pool = require("../../core/db");
 const ROLES_TABLE = "COE_TBL_ROLES";
 const MODULES_TABLE = "COE_TBL_MODULES";
 const ROLE_PERMISSIONS_TABLE = "COE_TBL_ROLE_PERMISSIONS";
+
+/**
+ * POST /api/access/roles/:ROLE_ID/permissions
+ *
+ * BODY:
+ * {
+ *   "MODULE_ID": 1,
+ *   "CAN_VIEW": 1,
+ *   "CAN_CREATE": 0,
+ *   "CAN_EDIT": 0,
+ *   "CAN_DELETE": 0,
+ *   "ACTIVE_STATUS": 1
+ * }
+ *
+ * Creates (or upserts) a single ROLE/MODULE permission row
+ */
+async function createRolePermission(req, res) {
+  try {
+    const ROLE_ID = parseInt(req.params.ROLE_ID, 10);
+    if (!ROLE_ID || Number.isNaN(ROLE_ID)) {
+      return res.status(400).json({ message: "Invalid ROLE_ID" });
+    }
+
+    const {
+      MODULE_ID,
+      CAN_VIEW,
+      CAN_CREATE,
+      CAN_EDIT,
+      CAN_DELETE,
+      ACTIVE_STATUS,
+    } = req.body;
+
+    if (!MODULE_ID) {
+      return res.status(400).json({ message: "MODULE_ID is required" });
+    }
+
+    // 1) Ensure role exists
+    const roles = await dbService.find({
+      table: ROLES_TABLE,
+      where: { ROLE_ID },
+      limit: 1,
+    });
+
+    if (roles.length === 0) {
+      return res.status(404).json({ message: "Role not found" });
+    }
+
+    // 2) Ensure module exists
+    const modules = await dbService.find({
+      table: MODULES_TABLE,
+      where: { MODULE_ID },
+      limit: 1,
+    });
+
+    if (modules.length === 0) {
+      return res.status(404).json({ message: "Module not found" });
+    }
+
+    // 3) Normalize flags to 0/1
+    const view = CAN_VIEW ? 1 : 0;
+    const create = CAN_CREATE ? 1 : 0;
+    const edit = CAN_EDIT ? 1 : 0;
+    const del = CAN_DELETE ? 1 : 0;
+    const active =
+      ACTIVE_STATUS === 0 || ACTIVE_STATUS === 1 ? ACTIVE_STATUS : 1;
+
+    // 4) Insert or update (upsert) single permission row
+    const sql = `
+      INSERT INTO ${ROLE_PERMISSIONS_TABLE}
+        (ROLE_ID, MODULE_ID, CAN_VIEW, CAN_CREATE, CAN_EDIT, CAN_DELETE, ACTIVE_STATUS)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        CAN_VIEW = VALUES(CAN_VIEW),
+        CAN_CREATE = VALUES(CAN_CREATE),
+        CAN_EDIT = VALUES(CAN_EDIT),
+        CAN_DELETE = VALUES(CAN_DELETE),
+        ACTIVE_STATUS = VALUES(ACTIVE_STATUS)
+    `;
+
+    await pool.query(sql, [
+      ROLE_ID,
+      MODULE_ID,
+      view,
+      create,
+      edit,
+      del,
+      active,
+    ]);
+
+    return res.status(201).json({
+      message: "Role permission created/updated",
+      ROLE_ID,
+      MODULE_ID,
+      CAN_VIEW: view,
+      CAN_CREATE: create,
+      CAN_EDIT: edit,
+      CAN_DELETE: del,
+      ACTIVE_STATUS: active,
+    });
+  } catch (err) {
+    console.error("createRolePermission error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 /**
  * GET /api/access/roles
  * Optional query: ?ACTIVE_STATUS=1
@@ -117,7 +222,22 @@ async function updateRole(req, res) {
     }
 
     const updateData = {};
-    if (ROLE_CODE !== undefined) updateData.ROLE_CODE = ROLE_CODE;
+
+    // Optional uniqueness check when changing code
+    if (ROLE_CODE !== undefined) {
+      const existing = await dbService.find({
+        table: ROLES_TABLE,
+        where: { ROLE_CODE },
+        limit: 1,
+      });
+
+      if (existing.length > 0 && existing[0].ROLE_ID !== ROLE_ID) {
+        return res.status(409).json({ message: "ROLE_CODE already exists" });
+      }
+
+      updateData.ROLE_CODE = ROLE_CODE;
+    }
+
     if (ROLE_NAME !== undefined) updateData.ROLE_NAME = ROLE_NAME;
     if (DESCRIPTION !== undefined) updateData.DESCRIPTION = DESCRIPTION;
     if (ACTIVE_STATUS !== undefined) updateData.ACTIVE_STATUS = ACTIVE_STATUS;
@@ -254,7 +374,22 @@ async function updateModule(req, res) {
     }
 
     const updateData = {};
-    if (MODULE_CODE !== undefined) updateData.MODULE_CODE = MODULE_CODE;
+
+    // Optional uniqueness check when changing code
+    if (MODULE_CODE !== undefined) {
+      const existing = await dbService.find({
+        table: MODULES_TABLE,
+        where: { MODULE_CODE },
+        limit: 1,
+      });
+
+      if (existing.length > 0 && existing[0].MODULE_ID !== MODULE_ID) {
+        return res.status(409).json({ message: "MODULE_CODE already exists" });
+      }
+
+      updateData.MODULE_CODE = MODULE_CODE;
+    }
+
     if (MODULE_NAME !== undefined) updateData.MODULE_NAME = MODULE_NAME;
     if (DESCRIPTION !== undefined) updateData.DESCRIPTION = DESCRIPTION;
     if (ACTIVE_STATUS !== undefined) updateData.ACTIVE_STATUS = ACTIVE_STATUS;
@@ -311,8 +446,8 @@ async function getRolePermissions(req, res) {
         COALESCE(rp.CAN_EDIT, 0) AS CAN_EDIT,
         COALESCE(rp.CAN_DELETE, 0) AS CAN_DELETE,
         COALESCE(rp.ACTIVE_STATUS, 0) AS PERMISSION_ACTIVE_STATUS
-      FROM COE_TBL_MODULES m
-      LEFT JOIN COE_TBL_ROLE_PERMISSIONS rp
+      FROM ${MODULES_TABLE} m
+      LEFT JOIN ${ROLE_PERMISSIONS_TABLE} rp
         ON rp.MODULE_ID = m.MODULE_ID
        AND rp.ROLE_ID = ?
       WHERE m.ACTIVE_STATUS = 1
@@ -350,6 +485,7 @@ async function getRolePermissions(req, res) {
  * }
  */
 async function updateRolePermissions(req, res) {
+  let connection;
   try {
     const ROLE_ID = parseInt(req.params.ROLE_ID, 10);
     if (!ROLE_ID || Number.isNaN(ROLE_ID)) {
@@ -362,12 +498,39 @@ async function updateRolePermissions(req, res) {
       return res.status(400).json({ message: "PERMISSIONS must be an array" });
     }
 
+    // Optional safety limit to avoid abuse
+    if (PERMISSIONS.length > 200) {
+      return res
+        .status(400)
+        .json({ message: "Too many permissions in one request (max 200)" });
+    }
+
+    // Ensure role exists (avoid orphan permissions)
+    const roles = await dbService.find({
+      table: ROLES_TABLE,
+      where: { ROLE_ID },
+      limit: 1,
+    });
+
+    if (roles.length === 0) {
+      return res.status(404).json({ message: "Role not found" });
+    }
+
+    // Validate that all items have MODULE_ID (no silent skip)
+    const invalidItem = PERMISSIONS.find(
+      (perm) => !perm || !perm.MODULE_ID
+    );
+    if (invalidItem) {
+      return res.status(400).json({
+        message: "Each permission item must include MODULE_ID",
+      });
+    }
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
     for (const perm of PERMISSIONS) {
       const MODULE_ID = perm.MODULE_ID;
-
-      if (!MODULE_ID) {
-        continue;
-      }
 
       const CAN_VIEW = perm.CAN_VIEW ? 1 : 0;
       const CAN_CREATE = perm.CAN_CREATE ? 1 : 0;
@@ -379,7 +542,7 @@ async function updateRolePermissions(req, res) {
           : 1;
 
       const sql = `
-        INSERT INTO COE_TBL_ROLE_PERMISSIONS
+        INSERT INTO ${ROLE_PERMISSIONS_TABLE}
           (ROLE_ID, MODULE_ID, CAN_VIEW, CAN_CREATE, CAN_EDIT, CAN_DELETE, ACTIVE_STATUS)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
@@ -390,7 +553,7 @@ async function updateRolePermissions(req, res) {
           ACTIVE_STATUS = VALUES(ACTIVE_STATUS)
       `;
 
-      await pool.query(sql, [
+      await connection.query(sql, [
         ROLE_ID,
         MODULE_ID,
         CAN_VIEW,
@@ -401,13 +564,26 @@ async function updateRolePermissions(req, res) {
       ]);
     }
 
+    await connection.commit();
+
     return res.json({
       message: "Role permissions updated",
       ROLE_ID,
     });
   } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+        console.error("updateRolePermissions rollback error:", rollbackErr);
+      }
+    }
     console.error("updateRolePermissions error:", err);
     return res.status(500).json({ message: "Server error" });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 }
 
@@ -417,7 +593,9 @@ async function getMyPermissions(req, res) {
   try {
     const user = req.user; // from authMiddleware
     if (!user || !user.USER_ID) {
-      return res.status(401).json({ message: "Unauthorized: USER_ID missing in token" });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: USER_ID missing in token" });
     }
 
     const USER_ID = user.USER_ID;
@@ -477,10 +655,14 @@ async function getMyPermissions(req, res) {
         };
       } else {
         // OR permissions
-        modulesMap[key].CAN_VIEW = modulesMap[key].CAN_VIEW || (row.CAN_VIEW ? 1 : 0);
-        modulesMap[key].CAN_CREATE = modulesMap[key].CAN_CREATE || (row.CAN_CREATE ? 1 : 0);
-        modulesMap[key].CAN_EDIT = modulesMap[key].CAN_EDIT || (row.CAN_EDIT ? 1 : 0);
-        modulesMap[key].CAN_DELETE = modulesMap[key].CAN_DELETE || (row.CAN_DELETE ? 1 : 0);
+        modulesMap[key].CAN_VIEW =
+          modulesMap[key].CAN_VIEW || (row.CAN_VIEW ? 1 : 0);
+        modulesMap[key].CAN_CREATE =
+          modulesMap[key].CAN_CREATE || (row.CAN_CREATE ? 1 : 0);
+        modulesMap[key].CAN_EDIT =
+          modulesMap[key].CAN_EDIT || (row.CAN_EDIT ? 1 : 0);
+        modulesMap[key].CAN_DELETE =
+          modulesMap[key].CAN_DELETE || (row.CAN_DELETE ? 1 : 0);
       }
 
       modulesMap[key].ROLES.push({
@@ -508,7 +690,7 @@ async function getMyPermissions(req, res) {
 }
 
 module.exports = {
- listRoles,
+  listRoles,
   createRole,
   updateRole,
   listModules,
@@ -517,4 +699,5 @@ module.exports = {
   getRolePermissions,
   updateRolePermissions,
   getMyPermissions,
+  createRolePermission,
 };
