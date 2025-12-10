@@ -34,4 +34,11 @@ router.delete(
   listsController.deleteItem
 );
 
+// GET list and items by LIST_KEY
+router.get(
+  "/by-key/:LIST_KEY",
+  authMiddleware,
+  listsController.getListByKey
+);
+
 module.exports = router;

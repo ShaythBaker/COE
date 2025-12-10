@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -15,57 +15,64 @@ import {
   FormGroup,
   Label,
   Input,
+  Spinner,
+  Alert,
 } from "reactstrap";
+import { useDispatch, useSelector } from "react-redux";
 
 import Breadcrumbs from "../../components/Common/Breadcrumb";
+import RequireModule from "../../components/Auth/RequireModule";
+import {
+  getSystemLists,
+  getSystemListItems,
+  createSystemListItem,
+  updateSystemListItem,
+} from "../../store/SystemLists/actions";
 
-const SystemLists = () => {
+const SystemListsInner = () => {
+  document.title = "System Configuration | Lists";
   // Breadcrumb
   const [breadcrumbItems] = useState([
     { title: "System Configuration", link: "#" },
     { title: "System Lists", link: "#" },
   ]);
 
-  // Local state for now – later this can be replaced by Redux + API
-  const [lists, setLists] = useState([
-    // Example row – you can remove this if you want empty table at start
-    {
-      id: 1,
-      name: "COUNTRY",
-      code: "JO",
-      description: "Jordan",
-      isActive: true,
-    },
-  ]);
+  const dispatch = useDispatch();
+  const { lists, items, loadingLists, loadingItems, savingItem, error } =
+    useSelector((state) => state.SystemLists || {});
 
+  const [selectedListId, setSelectedListId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // null = create, object = edit
 
   const [formValues, setFormValues] = useState({
-    name: "",
-    code: "",
-    description: "",
+    itemName: "",
     isActive: true,
   });
 
-  // Delete confirmation modal (same logic pattern as RuleManagement)
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
+  // Load lists on mount
+  useEffect(() => {
+    dispatch(getSystemLists());
+  }, [dispatch]);
+
+  // When lists load, auto-select first list and load its items
+  useEffect(() => {
+    if (!selectedListId && lists && lists.length > 0) {
+      const firstId = lists[0].LIST_ID;
+      setSelectedListId(firstId);
+      // This page wants ALL items (active + inactive)
+      dispatch(getSystemListItems(firstId, { includeInactive: true }));
+    }
+  }, [lists, selectedListId, dispatch]);
 
   const toggleModal = () => {
     setModalOpen(!modalOpen);
   };
 
-  const toggleDeleteModal = () => {
-    setDeleteModalOpen(!deleteModalOpen);
-  };
-
   const resetForm = () => {
     setEditingItem(null);
     setFormValues({
-      name: "",
-      code: "",
-      description: "",
+      itemName: "",
       isActive: true,
     });
   };
@@ -78,29 +85,20 @@ const SystemLists = () => {
   const handleEditClick = (item) => {
     setEditingItem(item);
     setFormValues({
-      name: item.name || "",
-      code: item.code || "",
-      description: item.description || "",
-      isActive: item.isActive ?? true,
+      itemName: item.ITEM_NAME || "",
+      isActive: item.ACTIVE_STATUS === 1,
     });
     setModalOpen(true);
   };
 
-  const handleDeleteClick = (item) => {
-    // Open confirmation modal instead of deleting immediately
-    setItemToDelete(item);
-    setDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      const updated = lists.filter((row) => row.id !== itemToDelete.id);
-      setLists(updated);
+  const handleListChange = (e) => {
+    const listId = Number(e.target.value);
+    setSelectedListId(listId);
+    if (listId) {
+      // This page wants ALL items (active + inactive)
+      dispatch(getSystemListItems(listId, { includeInactive: true }));
     }
-    setItemToDelete(null);
-    setDeleteModalOpen(false);
   };
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormValues((prev) => ({
@@ -112,34 +110,30 @@ const SystemLists = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formValues.name || !formValues.code) {
-      // basic validation
-      return;
-    }
+    if (!selectedListId) return;
+    if (!formValues.itemName) return;
+
+    const payload = {
+      ITEM_NAME: formValues.itemName,
+      ACTIVE_STATUS: formValues.isActive ? 1 : 0,
+    };
 
     if (editingItem) {
-      // Update
-      const updated = lists.map((row) =>
-        row.id === editingItem.id
-          ? {
-              ...row,
-              ...formValues,
-            }
-          : row
+      // Update existing item
+      dispatch(
+        updateSystemListItem(selectedListId, editingItem.LIST_ITEM_ID, payload)
       );
-      setLists(updated);
     } else {
-      // Create
-      const newItem = {
-        id: lists.length ? Math.max(...lists.map((r) => r.id)) + 1 : 1,
-        ...formValues,
-      };
-      setLists([...lists, newItem]);
+      // Create new item
+      dispatch(createSystemListItem(selectedListId, payload));
     }
 
+    // Close immediately; if you prefer "close on success only" we can do it via a success flag
     setModalOpen(false);
     resetForm();
   };
+
+  const selectedList = lists?.find((l) => l.LIST_ID === selectedListId);
 
   return (
     <React.Fragment>
@@ -155,35 +149,82 @@ const SystemLists = () => {
             <Col lg="12">
               <Card>
                 <CardHeader className="d-flex justify-content-between align-items-center">
-                  <h4 className="card-title mb-0">System Lists</h4>
-                  <Button color="primary" onClick={handleAddClick}>
+                  <div className="d-flex align-items-center gap-3">
+                    <h4 className="card-title mb-0">System Lists</h4>
+
+                    {/* List selector */}
+                    <div className="d-flex align-items-center">
+                      <Label className="me-2 mb-0">List:</Label>
+                      <Input
+                        type="select"
+                        bsSize="sm"
+                        value={selectedListId || ""}
+                        onChange={handleListChange}
+                        disabled={loadingLists}
+                      >
+                        <option value="">Select list</option>
+                        {lists &&
+                          lists.map((list) => (
+                            <option key={list.LIST_ID} value={list.LIST_ID}>
+                              {list.LIST_NAME} ({list.LIST_KEY})
+                            </option>
+                          ))}
+                      </Input>
+                      {loadingLists && <Spinner size="sm" className="ms-2" />}
+                    </div>
+                  </div>
+
+                  <Button
+                    color="primary"
+                    onClick={handleAddClick}
+                    disabled={!selectedListId || savingItem}
+                  >
+                    {savingItem && <Spinner size="sm" className="me-2" />}
                     <i className="bx bx-plus me-1" />
                     Add Item
                   </Button>
                 </CardHeader>
                 <CardBody>
+                  {error && typeof error === "string" && (
+                    <Alert color="danger" className="mb-3">
+                      {error}
+                    </Alert>
+                  )}
+
+                  <div className="mb-2">
+                    {selectedList && (
+                      <small className="text-muted">
+                        <strong>Selected List:</strong> {selectedList.LIST_NAME}{" "}
+                        ({selectedList.LIST_KEY}) – {selectedList.DESCRIPTION}
+                      </small>
+                    )}
+                  </div>
+
                   <div className="table-responsive">
                     <Table className="table table-bordered table-hover mb-0">
                       <thead className="table-light">
                         <tr>
                           <th style={{ width: "60px" }}>#</th>
-                          <th>List Name</th>
-                          <th>Code / Value</th>
-                          <th>Description</th>
+                          <th>Item Name</th>
                           <th>Status</th>
-                          <th style={{ width: "140px" }}>Actions</th>
+                          <th style={{ width: "100px" }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {lists && lists.length > 0 ? (
-                          lists.map((item, index) => (
-                            <tr key={item.id ?? index}>
+                        {loadingItems ? (
+                          <tr>
+                            <td colSpan="4" className="text-center">
+                              <Spinner size="sm" className="me-2" />
+                              Loading items...
+                            </td>
+                          </tr>
+                        ) : items && items.length > 0 ? (
+                          items.map((item, index) => (
+                            <tr key={item.LIST_ITEM_ID ?? index}>
                               <td>{index + 1}</td>
-                              <td>{item.name}</td>
-                              <td>{item.code}</td>
-                              <td>{item.description}</td>
+                              <td>{item.ITEM_NAME}</td>
                               <td>
-                                {item.isActive ? (
+                                {item.ACTIVE_STATUS === 1 ? (
                                   <span className="badge bg-success">
                                     Active
                                   </span>
@@ -194,7 +235,6 @@ const SystemLists = () => {
                                 )}
                               </td>
                               <td className="text-center">
-                                {/* Same icon logic as RuleManagement */}
                                 <i
                                   className="bx bx-edit text-primary"
                                   style={{
@@ -203,22 +243,16 @@ const SystemLists = () => {
                                   }}
                                   onClick={() => handleEditClick(item)}
                                 />
-
-                                <i
-                                  className="bx bx-trash text-danger ms-3"
-                                  style={{
-                                    cursor: "pointer",
-                                    fontSize: "18px",
-                                  }}
-                                  onClick={() => handleDeleteClick(item)}
-                                />
+                                {/* Delete is not wired because no DELETE API was provided */}
                               </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="6" className="text-center">
-                              No items defined yet.
+                            <td colSpan="4" className="text-center">
+                              {selectedListId
+                                ? "No items defined yet."
+                                : "Select a list to view its items."}
                             </td>
                           </tr>
                         )}
@@ -238,40 +272,18 @@ const SystemLists = () => {
               </ModalHeader>
               <ModalBody>
                 <FormGroup>
-                  <Label for="name">List Name</Label>
+                  <Label for="itemName">Item Name</Label>
                   <Input
-                    id="name"
-                    name="name"
+                    id="itemName"
+                    name="itemName"
                     type="text"
-                    value={formValues.name}
+                    value={formValues.itemName}
                     onChange={handleChange}
-                    placeholder="e.g. COUNTRY, CITY, CURRENCY"
+                    placeholder="e.g. Jordan, United Arab Emirates"
                     required
                   />
                 </FormGroup>
-                <FormGroup>
-                  <Label for="code">Code / Value</Label>
-                  <Input
-                    id="code"
-                    name="code"
-                    type="text"
-                    value={formValues.code}
-                    onChange={handleChange}
-                    placeholder="e.g. JO, IT, USD"
-                    required
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <Label for="description">Description</Label>
-                  <Input
-                    id="description"
-                    name="description"
-                    type="text"
-                    value={formValues.description}
-                    onChange={handleChange}
-                    placeholder="Optional description"
-                  />
-                </FormGroup>
+
                 <FormGroup check className="mt-2">
                   <Input
                     id="isActive"
@@ -289,33 +301,23 @@ const SystemLists = () => {
                 <Button type="button" color="secondary" onClick={toggleModal}>
                   Cancel
                 </Button>
-                <Button type="submit" color="primary">
+                <Button type="submit" color="primary" disabled={savingItem}>
+                  {savingItem && <Spinner size="sm" className="me-2" />}
                   {editingItem ? "Save Changes" : "Add Item"}
                 </Button>
               </ModalFooter>
             </Form>
-          </Modal>
-
-          {/* Delete confirmation modal – same UX idea as RuleManagement */}
-          <Modal isOpen={deleteModalOpen} toggle={toggleDeleteModal} centered>
-            <ModalHeader toggle={toggleDeleteModal}>Confirm Delete</ModalHeader>
-            <ModalBody>
-              Are you sure you want to delete{" "}
-              <strong>{itemToDelete?.name}</strong>?
-            </ModalBody>
-            <ModalFooter>
-              <Button color="secondary" onClick={toggleDeleteModal}>
-                Cancel
-              </Button>
-              <Button color="danger" onClick={handleConfirmDelete}>
-                Delete
-              </Button>
-            </ModalFooter>
           </Modal>
         </div>
       </div>
     </React.Fragment>
   );
 };
+
+const SystemLists = () => (
+  <RequireModule moduleCode="ACCESS_ROLES">
+    <SystemListsInner />
+  </RequireModule>
+);
 
 export default SystemLists;

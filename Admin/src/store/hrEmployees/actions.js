@@ -80,9 +80,9 @@ export const getHrEmployeeDetailFail = (error) => ({
 });
 
 // UPDATE
-export const updateHrEmployee = (userId, data) => ({
+export const updateHrEmployee = (id, data) => ({
   type: UPDATE_HR_EMPLOYEE,
-  payload: { userId, data },
+  payload: { id, data },
 });
 
 export const updateHrEmployeeSuccess = (response) => ({

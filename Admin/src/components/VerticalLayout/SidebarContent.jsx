@@ -3,8 +3,8 @@ import React, { useEffect, useRef, useCallback } from "react";
 
 import { usePermissions } from "../../helpers/usePermissions";
 
-// for hr roles
-import { isHrAdminOrSysAdmin } from "../../helpers/auth_helper"; // (still available if you need it)
+// for hr roles (still available if you need it)
+import { isHrAdminOrSysAdmin } from "../../helpers/auth_helper";
 
 // Import Scrollbar
 import SimpleBar from "simplebar-react";
@@ -18,11 +18,15 @@ import withRouter from "../Common/withRouter";
 import { withTranslation } from "react-i18next";
 
 const SidebarContent = (props) => {
-  const { isAccessAdmin, hasModule } = usePermissions();
-  const canSeeHr = hasModule("HR_USERS"); // module-based visibility
-  const canSeeAdmin = hasModule("ACCESS_ROLE");
-  const ref = useRef();
-  const path = useLocation();
+  const { hasModule } = usePermissions();
+
+  // Permissions (module-based)
+  const canSeeHr = hasModule("HR_USERS");
+  // NOTE: in docs this is usually "ACCESS_ROLES" – adjust if your backend uses a different code
+  const canSeeAdmin = hasModule("ACCESS_ROLES");
+
+  const ref = useRef(null);
+  const location = useLocation();
 
   const scrollElement = (item) => {
     if (item && ref.current) {
@@ -55,12 +59,12 @@ const SidebarContent = (props) => {
         parent2.classList.add("mm-show"); // ul tag
 
         const parent3 = parent2.parentElement; // li tag
-
         if (parent3) {
           parent3.classList.add("mm-active"); // li
           if (parent3.childNodes[0]) {
             parent3.childNodes[0].classList.add("mm-active"); // a
           }
+
           const parent4 = parent3.parentElement; // ul
           if (parent4) {
             parent4.classList.add("mm-show"); // ul
@@ -77,6 +81,7 @@ const SidebarContent = (props) => {
       scrollElement(item);
       return false;
     }
+
     scrollElement(item);
     return false;
   }, []);
@@ -131,7 +136,7 @@ const SidebarContent = (props) => {
   };
 
   const activeMenu = useCallback(() => {
-    const pathName = path.pathname;
+    const pathName = location.pathname;
     let matchingMenuItem = null;
     const ul = document.getElementById("side-menu");
     if (!ul) return;
@@ -140,7 +145,7 @@ const SidebarContent = (props) => {
     removeActivation(items);
 
     for (let i = 0; i < items.length; ++i) {
-      if (pathName === items[i].pathname) {
+      if (items[i].pathname === pathName) {
         matchingMenuItem = items[i];
         break;
       }
@@ -149,36 +154,44 @@ const SidebarContent = (props) => {
     if (matchingMenuItem) {
       activateParentDropdown(matchingMenuItem);
     }
-  }, [path.pathname, activateParentDropdown]);
+  }, [location.pathname, activateParentDropdown]);
 
   useEffect(() => {
-    ref.current?.recalculate();
+    // Recalculate SimpleBar scroll on mount
+    if (ref.current && typeof ref.current.recalculate === "function") {
+      ref.current.recalculate();
+    }
   }, []);
 
-  // Initialize / re-initialize MetisMenu when module visibility changes
+  // Initialize / re-initialize MetisMenu when permissions / menu structure change
   useEffect(() => {
     const menuElement = document.getElementById("side-menu");
     if (!menuElement) return;
 
-    const metisMenu = new MetisMenu("#side-menu");
+    const metis = new MetisMenu("#side-menu");
     activeMenu();
 
-    // Cleanup on component unmount or when dependencies change
     return () => {
-      metisMenu.dispose();
+      // dispose if available (metismenujs v1.2+)
+      if (metis && typeof metis.dispose === "function") {
+        metis.dispose();
+      }
     };
   }, [canSeeAdmin, canSeeHr, activeMenu]);
 
+  // Re-run activeMenu on route change for highlight
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     activeMenu();
-  }, [activeMenu]);
+  }, [location.pathname, activeMenu]);
+
   return (
     <React.Fragment>
       <SimpleBar className="h-100" ref={ref}>
         <div id="sidebar-menu">
           <ul className="metismenu list-unstyled" id="side-menu">
             <li className="menu-title">{props.t("Menu")} </li>
+
             <li>
               <Link to="/#" className="has-arrow">
                 <i className="bx bx-home-circle"></i>
@@ -205,11 +218,10 @@ const SidebarContent = (props) => {
 
             {canSeeHr && (
               <li>
-                <Link to="#" className="has-arrow">
+                <Link to="/#" className="has-arrow">
                   <i className="bx bx-user"></i>
                   <span>{props.t("Human Resource")}</span>
                 </Link>
-
                 <ul className="sub-menu" aria-expanded="false">
                   <li>
                     <Link to="/hr/users">{props.t("Employees")}</Link>
@@ -217,9 +229,9 @@ const SidebarContent = (props) => {
                   <li>
                     <Link to="/hr/users/create">{props.t("Add Employee")}</Link>
                   </li>
-                  <li>
+                  {/* <li>
                     <Link to="/hr/rules">{props.t("Rule Management")}</Link>
-                  </li>
+                  </li> */}
                 </ul>
               </li>
             )}
@@ -227,7 +239,7 @@ const SidebarContent = (props) => {
             {/* System Configuration (conditional) */}
             {canSeeAdmin && (
               <li>
-                <Link to="#" className="has-arrow">
+                <Link to="/#" className="has-arrow">
                   <i className="bx bx-cog"></i>
                   <span>{props.t("System Configuration")}</span>
                 </Link>
@@ -238,21 +250,26 @@ const SidebarContent = (props) => {
                       {props.t("System Lists")}
                     </Link>
                   </li>
+                  <li>
+                    <Link to="/system-configuration/rule-management">
+                      {props.t("Rule Management")}
+                    </Link>
+                  </li>
                 </ul>
               </li>
             )}
+
             <li className="menu-title">{props.t("Apps")}</li>
-            {canSeeAdmin && (
-              <li>
-                <Link to="/calendar" className=" ">
-                  <i className="bx bx-calendar"></i>
-                  <span>{props.t("Calendar")}</span>
-                </Link>
-              </li>
-            )}
 
             <li>
-              <Link to="/chat" className="">
+              <Link to="/calendar">
+                <i className="bx bx-calendar"></i>
+                <span>{props.t("Calendar")}</span>
+              </Link>
+            </li>
+
+            <li>
+              <Link to="/chat">
                 <i className="bx bx-chat"></i>
                 <span>{props.t("Chat")}</span>
               </Link>
@@ -303,7 +320,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-bitcoin"></i>
                 <span>{props.t("Crypto")}</span>
               </Link>
@@ -344,7 +361,7 @@ const SidebarContent = (props) => {
                   <Link to="/email-inbox">{props.t("Inbox")}</Link>
                 </li>
                 <li>
-                  <Link to="/email-read">{props.t("Read Email")} </Link>
+                  <Link to="/email-read">{props.t("Read Email")}</Link>
                 </li>
                 <li>
                   <Link to="/#" className="has-arrow">
@@ -358,12 +375,12 @@ const SidebarContent = (props) => {
                     </li>
                     <li>
                       <Link to="/email-template-alert">
-                        {props.t("Alert Email")}{" "}
+                        {props.t("Alert Email")}
                       </Link>
                     </li>
                     <li>
                       <Link to="/email-template-billing">
-                        {props.t("Billing Email")}{" "}
+                        {props.t("Billing Email")}
                       </Link>
                     </li>
                   </ul>
@@ -372,7 +389,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-receipt"></i>
                 <span>{props.t("Invoices")}</span>
               </Link>
@@ -387,7 +404,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-briefcase-alt-2"></i>
                 <span>{props.t("Projects")}</span>
               </Link>
@@ -410,7 +427,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-task"></i>
                 <span>{props.t("Tasks")}</span>
               </Link>
@@ -428,7 +445,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bxs-user-detail"></i>
                 <span>{props.t("Contacts")}</span>
               </Link>
@@ -446,9 +463,8 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bxs-detail" />
-
                 <span>{props.t("Blog")}</span>
               </Link>
               <ul className="sub-menu" aria-expanded="false">
@@ -465,11 +481,11 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-briefcase-alt"></i>
                 <span key="t-jobs">{props.t("Jobs")}</span>
               </Link>
-              <ul className="sub-menu">
+              <ul className="sub-menu" aria-expanded="false">
                 <li>
                   <Link to="/job-list">{props.t("Job List")}</Link>
                 </li>
@@ -489,7 +505,7 @@ const SidebarContent = (props) => {
                   <Link to="/#" className="has-arrow">
                     Candidate
                   </Link>
-                  <ul className="sub-menu" aria-expanded="true">
+                  <ul className="sub-menu" aria-expanded="false">
                     <li>
                       <Link to="/candidate-list">{props.t("List")}</Link>
                     </li>
@@ -504,12 +520,13 @@ const SidebarContent = (props) => {
             </li>
 
             <li className="menu-title">Pages</li>
+
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-user-circle"></i>
                 <span>{props.t("Authentication")}</span>
               </Link>
-              <ul className="sub-menu">
+              <ul className="sub-menu" aria-expanded="false">
                 <li>
                   <Link to="/pages-login">{props.t("Login")}</Link>
                 </li>
@@ -570,8 +587,9 @@ const SidebarContent = (props) => {
                 </li>
               </ul>
             </li>
+
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-file"></i>
                 <span>{props.t("Utility")}</span>
               </Link>
@@ -606,7 +624,7 @@ const SidebarContent = (props) => {
             <li className="menu-title">{props.t("Components")}</li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-tone"></i>
                 <span>{props.t("UI Elements")}</span>
               </Link>
@@ -688,7 +706,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bxs-eraser"></i>
                 <span className="badge rounded-pill bg-danger float-end">
                   10
@@ -714,7 +732,7 @@ const SidebarContent = (props) => {
                   <Link to="/form-editors">{props.t("Form Editors")}</Link>
                 </li>
                 <li>
-                  <Link to="/form-uploads">{props.t("Form File Upload")} </Link>
+                  <Link to="/form-uploads">{props.t("Form File Upload")}</Link>
                 </li>
                 <li>
                   <Link to="/form-repeater">{props.t("Form Repeater")}</Link>
@@ -729,7 +747,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-list-ul"></i>
                 <span>{props.t("Tables")}</span>
               </Link>
@@ -740,25 +758,14 @@ const SidebarContent = (props) => {
                 <li>
                   <Link to="/tables-datatable">{props.t("Data Tables")}</Link>
                 </li>
-                {/* <li>
-                  <Link to="/tables-responsive">
-                    {props.t("Responsive Table")}
-                  </Link>
-                </li> */}
-                {/* <li>
-                  <Link to="/tables-dragndrop">
-                    {props.t("Drag & Drop Table")}
-                  </Link>
-                </li> */}
               </ul>
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bxs-bar-chart-alt-2"></i>
                 <span>{props.t("Charts")}</span>
               </Link>
-
               <ul className="sub-menu" aria-expanded="false">
                 <li>
                   <Link to="/apex-charts">{props.t("Apex charts")}</Link>
@@ -769,7 +776,6 @@ const SidebarContent = (props) => {
                 <li>
                   <Link to="/chartjs-charts">{props.t("Chartjs Chart")}</Link>
                 </li>
-
                 <li>
                   <Link to="/charts-knob">{props.t("Knob Charts")}</Link>
                 </li>
@@ -785,7 +791,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-aperture"></i>
                 <span>{props.t("Icons")}</span>
               </Link>
@@ -808,7 +814,7 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-map"></i>
                 <span>{props.t("Maps")}</span>
               </Link>
@@ -820,11 +826,11 @@ const SidebarContent = (props) => {
             </li>
 
             <li>
-              <Link to="/#" className="has-arrow ">
+              <Link to="/#" className="has-arrow">
                 <i className="bx bx-share-alt"></i>
                 <span>{props.t("Multi Level")}</span>
               </Link>
-              <ul className="sub-menu" aria-expanded="true">
+              <ul className="sub-menu" aria-expanded="false">
                 <li>
                   <Link to="/#">{props.t("Level 1.1")}</Link>
                 </li>
@@ -832,7 +838,7 @@ const SidebarContent = (props) => {
                   <Link to="/#" className="has-arrow">
                     {props.t("Level 1.2")}
                   </Link>
-                  <ul className="sub-menu" aria-expanded="true">
+                  <ul className="sub-menu" aria-expanded="false">
                     <li>
                       <Link to="/#">{props.t("Level 2.1")}</Link>
                     </li>
@@ -852,7 +858,6 @@ const SidebarContent = (props) => {
 
 SidebarContent.propTypes = {
   t: PropTypes.func,
-  location: PropTypes.object,
 };
 
 export default withRouter(withTranslation()(SidebarContent));

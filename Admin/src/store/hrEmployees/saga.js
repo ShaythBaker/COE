@@ -88,9 +88,10 @@ function* onGetHrEmployeeDetail({ payload: userId }) {
 }
 
 // UPDATE
-function* onUpdateHrEmployee({ payload: { userId, data } }) {
+
+function* onUpdateHrEmployee({ payload: { id, data } }) {
   try {
-    const response = yield call(updateHrEmployeeApi, userId, data);
+    const response = yield call(updateHrEmployeeApi, id, data);
     yield put(updateHrEmployeeSuccess(response));
   } catch (error) {
     const msg =
@@ -100,6 +101,7 @@ function* onUpdateHrEmployee({ payload: { userId, data } }) {
     yield put(updateHrEmployeeFail(msg));
   }
 }
+
 
 export function* watchHrEmployees() {
   yield takeEvery(GET_HR_EMPLOYEES, onGetHrEmployees);

@@ -9,6 +9,10 @@ import Account from "./auth/register/reducer";
 import ForgetPassword from "./auth/forgetpwd/reducer";
 import Profile from "./auth/profile/reducer";
 
+// System Lists
+
+import SystemLists from "./SystemLists/reducer";
+
 // HR 
 
 import hrEmployees from "./hrEmployees/reducer";
@@ -87,7 +91,8 @@ const rootReducer = combineReducers({
   DashboardJob,
   Permissions,
   hrEmployees,
-  HrRules
+  HrRules,
+  SystemLists
 });
 
 export default rootReducer;

@@ -24,6 +24,7 @@ import dashboardJobSaga from "./dashboard-jobs/saga";
 import PermissionsSaga from "./permissions/saga";
 import hrEmployeesSaga from "./hrEmployees/saga";
 import HrRulesSaga from "./HrRules/saga";
+import SystemListsSaga from "./SystemLists/saga";
 
 export default function* rootSaga() {
   yield all([
@@ -51,5 +52,6 @@ export default function* rootSaga() {
     fork(PermissionsSaga),
     fork(hrEmployeesSaga),
     fork(HrRulesSaga),
+    fork(SystemListsSaga),
   ]);
 }

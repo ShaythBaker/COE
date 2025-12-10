@@ -1,4 +1,3 @@
-// src/modules/attachments/attachments.routes.js
 const express = require("express");
 const multer = require("multer");
 const attachmentsController = require("./attachments.controller");
@@ -11,44 +10,39 @@ const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    // 10 MB example, adjust to your needs
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 });
 
-// If you want to enforce RBAC later, uncomment and configure:
-// const MODULE_CODE = "ATTACHMENTS";
-
 // List current attachments
-router.get(
-  "/",
-  authMiddleware,
-  // checkPermission(MODULE_CODE, "VIEW"),
-  attachmentsController.listAttachments
-);
+router.get("/", authMiddleware, attachmentsController.listAttachments);
 
-// Get single attachment by FILE_ID
+// Get single attachment by FILE_ID (metadata only)
 router.get(
   "/:FILE_ID",
   authMiddleware,
-  // checkPermission(MODULE_CODE, "VIEW"),
   attachmentsController.getAttachmentById
 );
 
-// Create new attachment (multipart/form-data)
+// NEW: Get presigned URL for attachment
+router.get(
+  "/:FILE_ID/url",
+  authMiddleware,
+  attachmentsController.getAttachmentPresignedUrl
+);
+
+// Create new attachment
 router.post(
   "/",
   authMiddleware,
-  // checkPermission(MODULE_CODE, "CREATE"),
   upload.single("file"),
   attachmentsController.createAttachment
 );
 
-// Versioned update of attachment (multipart/form-data, file optional)
+// Versioned update of attachment
 router.put(
   "/:FILE_ID",
   authMiddleware,
-  // checkPermission(MODULE_CODE, "EDIT"),
   upload.single("file"),
   attachmentsController.updateAttachment
 );
@@ -57,7 +51,6 @@ router.put(
 router.delete(
   "/:FILE_ID",
   authMiddleware,
-  // checkPermission(MODULE_CODE, "DELETE"),
   attachmentsController.deleteAttachment
 );
 

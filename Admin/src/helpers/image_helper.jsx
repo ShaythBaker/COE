@@ -21,3 +21,4 @@ export const base64ToImageSrc = (base64, mime = "image/png") => {
   if (!base64) return null;
   return `data:${mime};base64,${base64}`;
 };
+ 

@@ -12,6 +12,13 @@ export const POST_FAKE_PASSWORD_FORGET = "/fake-forget-pwd";
 export const POST_FAKE_JWT_PASSWORD_FORGET = "/jwt-forget-pwd";
 export const SOCIAL_LOGIN = "/social-login";
 
+// ATTACHMENTS
+export const CREATE_ATTACHMENT = "/api/attachments";
+export const GET_ATTACHMENT_URL = "/api/attachments";
+// Lists
+export const GET_LIST_BY_KEY = "/api/lists/by-key";
+
+
 // PROFILE
 export const POST_EDIT_JWT_PROFILE = "/api/auth/profile";
 export const POST_EDIT_PROFILE = "/post-fake-profile";
@@ -23,6 +30,9 @@ export const GET_MY_PERMISSIONS = "/api/access/my-permissions";
 
 // ✅ ACCESS MODULES (Departments for Rule Management Dropdown)
 export const GET_ACCESS_MODULES = "/api/access/modules";
+export const GET_ACCESS_ROLES = "/api/access/roles";
+// Role permissions base - we use /:ROLE_ID/permissions from this
+export const ROLE_PERMISSIONS_BASE = "/api/access/roles";
 
 // ====================
 // HR
@@ -45,6 +55,13 @@ export const GET_HR_RULES   = GET_HR_ROLES;
 export const CREATE_HR_RULE = "/api/hr/roles";
 export const UPDATE_HR_RULE = "/api/hr/roles";
 export const DELETE_HR_RULE = "/api/hr/roles";
+
+// ====================
+// System dynamic lists
+// ====================
+
+export const GET_SYSTEM_LISTS = "/api/lists"; // will use ?ACTIVE_STATUS=1
+export const GET_SYSTEM_LIST_ITEMS = "/api/lists"; // base for /:LIST_ID/items
 
 // ====================
 // PRODUCTS
