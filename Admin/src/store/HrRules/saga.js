@@ -1,4 +1,3 @@
-// src/store/HrRules/saga.js
 import { call, put, takeEvery } from "redux-saga/effects";
 import {
   GET_HR_RULES,
@@ -16,6 +15,7 @@ import {
   updateHrRuleFail,
   deleteHrRuleSuccess,
   deleteHrRuleFail,
+  getHrRules,
 } from "./actions";
 
 import {
@@ -25,81 +25,49 @@ import {
   deleteHrRuleApi,
 } from "../../helpers/fakebackend_helper";
 
-/**
- * Normalize whatever the backend gives us for roles into a "rule" object.
- * IMPORTANT: keep MODULE_ID + MODULE_CODE separate (no more falling back to ROLE_NAME).
- */
-const mapRoleToRule = (role, index) => ({
-  id: role.ROLE_ID ?? role.id ?? role.role_id ?? index,
-
-  // link to access/modules
-  MODULE_ID: role.MODULE_ID ?? role.module_id ?? null,
-  MODULE_CODE: role.MODULE_CODE ?? role.module_code ?? "",
-
-  ROLE_NAME: role.ROLE_NAME ?? role.role_name ?? role.name ?? "",
-
-  CAN_VIEW: role.CAN_VIEW ?? role.canView ?? role.can_view ?? false,
-  CAN_CREATE: role.CAN_CREATE ?? role.canCreate ?? role.can_create ?? false,
-  CAN_EDIT: role.CAN_EDIT ?? role.canEdit ?? role.can_edit ?? false,
-  CAN_DELETE: role.CAN_DELETE ?? role.canDelete ?? role.can_delete ?? false,
-});
-
-function* onGetHrRules() {
+function* fetchHrRules() {
   try {
     const response = yield call(getHrRulesApi);
-
-    const rawList =
-      response?.data ||
-      response?.roles ||
-      response ||
-      [];
-
-    const rules = Array.isArray(rawList)
-      ? rawList.map((role, index) => mapRoleToRule(role, index))
-      : [];
-
-    yield put(getHrRulesSuccess(rules));
+    const data = response?.data || response || [];
+    yield put(getHrRulesSuccess(data));
   } catch (error) {
-    console.error("GET_HR_RULES failed:", error);
-    yield put(getHrRulesFail(error));
+    yield put(getHrRulesFail(error?.response?.data || error.message));
   }
 }
 
 function* onCreateHrRule({ payload }) {
   try {
-    const response = yield call(createHrRuleApi, payload);
-    const created =
-      (response?.data && mapRoleToRule(response.data)) ||
-      mapRoleToRule(response, payload?.id);
-    yield put(createHrRuleSuccess(created));
+    yield call(createHrRuleApi, payload);
+    yield put(createHrRuleSuccess());
+    // Refresh list for best UX
+    yield put(getHrRules());
   } catch (error) {
-    yield put(createHrRuleFail(error));
+    yield put(createHrRuleFail(error?.response?.data || error.message));
   }
 }
 
 function* onUpdateHrRule({ payload }) {
   try {
-    const response = yield call(updateHrRuleApi, payload);
-    const updated =
-      (response?.data && mapRoleToRule(response.data)) ||
-      mapRoleToRule(response, payload?.id);
-    yield put(updateHrRuleSuccess(updated));
+    yield call(updateHrRuleApi, payload);
+    yield put(updateHrRuleSuccess());
+    yield put(getHrRules());
   } catch (error) {
-    yield put(updateHrRuleFail(error));
+    yield put(updateHrRuleFail(error?.response?.data || error.message));
   }
 }
 
 function* onDeleteHrRule({ payload }) {
   try {
     yield call(deleteHrRuleApi, payload);
-    yield put(deleteHrRuleSuccess(payload));
+    yield put(deleteHrRuleSuccess());
+    yield put(getHrRules());
   } catch (error) {
-    yield put(deleteHrRuleFail(error));
+    yield put(deleteHrRuleFail(error?.response?.data || error.message));
   }
 }
 
 export default function* HrRulesSaga() {
-  yield takeEvery(GET_HR_RULES, onGetHrRules);
+  yield takeEvery(GET_HR_RULES, fetchHrRules);
   yield takeEvery(CREATE_HR_RULE, onCreateHrRule);
   yield takeEvery(UPDATE_HR_RULE, onUpdateHrRule);
   yield takeEvery(DELETE_HR_RULE, onDeleteHrRule);

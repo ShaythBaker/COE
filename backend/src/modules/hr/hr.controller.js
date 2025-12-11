@@ -2,7 +2,6 @@ const bcrypt = require("bcryptjs");
 const dbService = require("../../core/dbService");
 const pool = require("../../core/db");
 
-
 const USERS_TABLE = "COE_TBL_USERS";
 const USER_ROLES_TABLE = "COE_TBL_USER_ROLES";
 
@@ -17,7 +16,7 @@ async function listEmployees(req, res) {
         "LAST_NAME",
         "EMAIL",
         "PROFILE_IMG",
-        "DEPATRMENT_ID",
+        "COMPANY_ID",
         "PHONE_NUMBER",
         "ACTIVE_STATUS",
         "CREATED_AT",
@@ -44,7 +43,7 @@ async function listEmployees(req, res) {
  *   "EMAIL": "shayth@example.com",
  *   "PASSWORD": "StrongPass123!",
  *   "PROFILE_IMG": null,
- *   "DEPATRMENT_ID": 10,
+ *   "COMPANY_ID": 10,
  *   "PHONE_NUMBER": "00962...",
  *   "ACTIVE_STATUS": 1,
  *   "ROLE_IDS": [1, 2]   // list of ROLE_IDs to assign in this department
@@ -58,7 +57,7 @@ async function createEmployee(req, res) {
       EMAIL,
       PASSWORD,
       PROFILE_IMG,
-      DEPATRMENT_ID,
+      COMPANY_ID,
       PHONE_NUMBER,
       ACTIVE_STATUS,
       ROLE_IDS,
@@ -91,7 +90,7 @@ async function createEmployee(req, res) {
       EMAIL,
       PASSWORD: hashedPassword,
       PROFILE_IMG: PROFILE_IMG || null,
-      DEPATRMENT_ID: DEPATRMENT_ID || null,
+      COMPANY_ID: COMPANY_ID || null,
       PHONE_NUMBER: PHONE_NUMBER || null,
       ACTIVE_STATUS: ACTIVE_STATUS ?? 1,
     });
@@ -106,7 +105,7 @@ async function createEmployee(req, res) {
         await dbService.insert(USER_ROLES_TABLE, {
           USER_ID,
           ROLE_ID,
-          DEPATRMENT_ID: DEPATRMENT_ID || null,
+          COMPANY_ID: COMPANY_ID || null,
           ACTIVE_STATUS: 1,
         });
       }
@@ -145,7 +144,6 @@ async function listRoles(req, res) {
   }
 }
 
-
 async function updateEmployee(req, res) {
   try {
     const USER_ID = parseInt(req.params.USER_ID, 10);
@@ -159,7 +157,7 @@ async function updateEmployee(req, res) {
       LAST_NAME,
       EMAIL,
       PROFILE_IMG,
-      DEPATRMENT_ID,
+      COMPANY_ID,
       PHONE_NUMBER,
       ACTIVE_STATUS,
       ROLE_IDS,
@@ -182,7 +180,7 @@ async function updateEmployee(req, res) {
     if (LAST_NAME !== undefined) updateData.LAST_NAME = LAST_NAME;
     if (EMAIL !== undefined) updateData.EMAIL = EMAIL;
     if (PROFILE_IMG !== undefined) updateData.PROFILE_IMG = PROFILE_IMG;
-    if (DEPATRMENT_ID !== undefined) updateData.DEPATRMENT_ID = DEPATRMENT_ID;
+    if (COMPANY_ID !== undefined) updateData.COMPANY_ID = COMPANY_ID;
     if (PHONE_NUMBER !== undefined) updateData.PHONE_NUMBER = PHONE_NUMBER;
     if (ACTIVE_STATUS !== undefined) updateData.ACTIVE_STATUS = ACTIVE_STATUS;
 
@@ -192,18 +190,18 @@ async function updateEmployee(req, res) {
 
     // 3) Update roles (per department)
     if (Array.isArray(ROLE_IDS)) {
-      if (DEPATRMENT_ID === undefined || DEPATRMENT_ID === null) {
+      if (COMPANY_ID === undefined || COMPANY_ID === null) {
         return res.status(400).json({
           message:
-            "DEPATRMENT_ID is required when updating ROLE_IDS for an employee",
+            "COMPANY_ID is required when updating ROLE_IDS for an employee",
         });
       }
 
-      // Soft-disable existing roles for this USER_ID + DEPATRMENT_ID
+      // Soft-disable existing roles for this USER_ID + COMPANY_ID
       await dbService.update(
         USER_ROLES_TABLE,
         { ACTIVE_STATUS: 0 },
-        { USER_ID, DEPATRMENT_ID }
+        { USER_ID, COMPANY_ID }
       );
 
       // Insert new active roles for this department
@@ -213,7 +211,7 @@ async function updateEmployee(req, res) {
         await dbService.insert(USER_ROLES_TABLE, {
           USER_ID,
           ROLE_ID,
-          DEPATRMENT_ID,
+          COMPANY_ID,
           ACTIVE_STATUS: 1,
         });
       }
@@ -229,7 +227,7 @@ async function updateEmployee(req, res) {
         "LAST_NAME",
         "EMAIL",
         "PROFILE_IMG",
-        "DEPATRMENT_ID",
+        "COMPANY_ID",
         "PHONE_NUMBER",
         "ACTIVE_STATUS",
         "CREATED_AT",
@@ -249,7 +247,6 @@ async function updateEmployee(req, res) {
   }
 }
 
-
 async function getEmployeeById(req, res) {
   try {
     const USER_ID = parseInt(req.params.USER_ID, 10);
@@ -265,7 +262,7 @@ async function getEmployeeById(req, res) {
         u.LAST_NAME,
         u.EMAIL,
         u.PROFILE_IMG,
-        u.DEPATRMENT_ID,
+        u.COMPANY_ID,
         u.PHONE_NUMBER,
         u.ACTIVE_STATUS,
         u.CREATED_AT,
@@ -273,7 +270,7 @@ async function getEmployeeById(req, res) {
 
         ur.USER_ROLE_ID,
         ur.ROLE_ID,
-        ur.DEPATRMENT_ID AS ROLE_DEPARMENT_ID,
+        ur.COMPANY_ID AS ROLE_DEPARMENT_ID,
         ur.ACTIVE_STATUS AS USER_ROLE_ACTIVE_STATUS,
 
         r.ROLE_CODE,
@@ -305,7 +302,7 @@ async function getEmployeeById(req, res) {
       LAST_NAME: base.LAST_NAME,
       EMAIL: base.EMAIL,
       PROFILE_IMG: base.PROFILE_IMG,
-      DEPATRMENT_ID: base.DEPATRMENT_ID,
+      COMPANY_ID: base.COMPANY_ID,
       PHONE_NUMBER: base.PHONE_NUMBER,
       ACTIVE_STATUS: base.ACTIVE_STATUS,
       CREATED_AT: base.CREATED_AT,
@@ -320,7 +317,7 @@ async function getEmployeeById(req, res) {
         ROLE_CODE: r.ROLE_CODE,
         ROLE_NAME: r.ROLE_NAME,
         ROLE_DESCRIPTION: r.ROLE_DESCRIPTION,
-        DEPATRMENT_ID: r.ROLE_DEPARMENT_ID,
+        COMPANY_ID: r.ROLE_DEPARMENT_ID,
       }));
 
     return res.json({

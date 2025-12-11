@@ -11,18 +11,18 @@ import Chat from "../pages/Chat/Chat";
 import HrUsersCreate from "../pages/HR/HrUsersCreate";
 import HrUsersList from "../pages/HR/HrUsersList";
 
+
 import RuleManagement from "../pages/HR/RuleManagement";
 
 import HrUsersEdit from "../pages/HR/HrUsersEdit";
 
-
 //System Configuration
 
 import SystemLists from "../pages/SystemConfiguration/SystemLists";
+import RuleManagementModuleRoles from "../pages/HR/RuleManagementModuleRoles";
 
-import Requests from "../pages/HR/Request"; 
 
-
+import Requests from "../pages/HR/Request";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -31,7 +31,7 @@ import FileManager from "../pages/FileManager/index";
 import UserProfile from "../pages/Authentication/user-profile";
 
 // Pages Calendar
-import Calendar from "../pages/Calendar/index"; 
+import Calendar from "../pages/Calendar/index";
 
 // // //Tasks
 import TasksList from "../pages/Tasks/tasks-list";
@@ -203,7 +203,6 @@ const authProtectedRoutes = [
   { path: "/blog", component: <Blog /> },
   { path: "/dashboard-job", component: <DashboardJob /> },
 
-
   // // HR
 
   {
@@ -221,21 +220,24 @@ const authProtectedRoutes = [
   },
 
   {
-    path: "/hr/rules",
-    component: <RuleManagement />,
-  },
-
-  {
     path: "/hr/request",
     component: <Requests />,
   },
-  
 
   // System Configuration
 
   {
     path: "/system-configuration/system-lists",
     component: <SystemLists />,
+  },
+
+  {
+    path: "/system-configuration/rule-management",
+    component: <RuleManagement />,
+  },
+  {
+    path: "/system-configuration/rule-management/:moduleId",
+    component: <RuleManagementModuleRoles />,
   },
 
   //   //Crypto
@@ -254,7 +256,7 @@ const authProtectedRoutes = [
 
   // //calendar
 
-  { 
+  {
     path: "/calendar",
     component: <Calendar />, // NOT wrapped again
   },

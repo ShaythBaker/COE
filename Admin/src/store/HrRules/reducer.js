@@ -1,42 +1,27 @@
-// src/store/HrRules/reducer.js
-
 import {
   GET_HR_RULES,
   GET_HR_RULES_SUCCESS,
   GET_HR_RULES_FAIL,
+  CREATE_HR_RULE,
   CREATE_HR_RULE_SUCCESS,
   CREATE_HR_RULE_FAIL,
+  UPDATE_HR_RULE,
   UPDATE_HR_RULE_SUCCESS,
   UPDATE_HR_RULE_FAIL,
+  DELETE_HR_RULE,
   DELETE_HR_RULE_SUCCESS,
   DELETE_HR_RULE_FAIL,
 } from "./actionTypes";
 
-const initialState = {
+const INIT_STATE = {
   rules: [],
   loading: false,
-  error: null, // always store a STRING here
+  saving: false,
+  deleting: false,
+  error: null,
 };
 
-// Helper: always turn any error into a readable string
-const toErrorMessage = (err) => {
-  if (!err) return null;
-  if (typeof err === "string") return err;
-
-  // Axios-style error: try to extract a useful message
-  if (err.response && err.response.data) {
-    const data = err.response.data;
-    if (typeof data === "string") return data;
-    if (typeof data.message === "string") return data.message;
-    if (typeof data.error === "string") return data.error;
-  }
-
-  if (err.message) return err.message;
-
-  return "Something went wrong while processing your request.";
-};
-
-const HrRules = (state = initialState, action) => {
+const HrRules = (state = INIT_STATE, action) => {
   switch (action.type) {
     case GET_HR_RULES:
       return {
@@ -44,7 +29,6 @@ const HrRules = (state = initialState, action) => {
         loading: true,
         error: null,
       };
-
     case GET_HR_RULES_SUCCESS:
       return {
         ...state,
@@ -52,59 +36,50 @@ const HrRules = (state = initialState, action) => {
         rules: action.payload || [],
         error: null,
       };
-
     case GET_HR_RULES_FAIL:
       return {
         ...state,
         loading: false,
-        error: toErrorMessage(action.payload),
+        error: action.payload,
       };
 
-    case CREATE_HR_RULE_SUCCESS:
+    case CREATE_HR_RULE:
+    case UPDATE_HR_RULE:
       return {
         ...state,
-        rules: [...state.rules, action.payload],
+        saving: true,
         error: null,
       };
-
-    case CREATE_HR_RULE_FAIL:
-      return {
-        ...state,
-        error: toErrorMessage(action.payload),
-      };
-
+    case CREATE_HR_RULE_SUCCESS:
     case UPDATE_HR_RULE_SUCCESS:
       return {
         ...state,
-        rules: state.rules.map((r) =>
-          (r.id ?? r.ROLE_ID) === (action.payload.id ?? action.payload.ROLE_ID)
-            ? action.payload
-            : r
-        ),
-        error: null,
+        saving: false,
       };
-
+    case CREATE_HR_RULE_FAIL:
     case UPDATE_HR_RULE_FAIL:
       return {
         ...state,
-        error: toErrorMessage(action.payload),
+        saving: false,
+        error: action.payload,
       };
 
+    case DELETE_HR_RULE:
+      return {
+        ...state,
+        deleting: true,
+        error: null,
+      };
     case DELETE_HR_RULE_SUCCESS:
       return {
         ...state,
-        rules: state.rules.filter(
-          (r) =>
-            (r.id ?? r.ROLE_ID) !==
-            (action.payload.id ?? action.payload.ROLE_ID)
-        ),
-        error: null,
+        deleting: false,
       };
-
     case DELETE_HR_RULE_FAIL:
       return {
         ...state,
-        error: toErrorMessage(action.payload),
+        deleting: false,
+        error: action.payload,
       };
 
     default:

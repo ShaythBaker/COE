@@ -1,65 +1,70 @@
-// src/store/HrRules/actions.js
-import * as types from "./actionTypes";
+import {
+  GET_HR_RULES,
+  GET_HR_RULES_SUCCESS,
+  GET_HR_RULES_FAIL,
+  CREATE_HR_RULE,
+  CREATE_HR_RULE_SUCCESS,
+  CREATE_HR_RULE_FAIL,
+  UPDATE_HR_RULE,
+  UPDATE_HR_RULE_SUCCESS,
+  UPDATE_HR_RULE_FAIL,
+  DELETE_HR_RULE,
+  DELETE_HR_RULE_SUCCESS,
+  DELETE_HR_RULE_FAIL,
+} from "./actionTypes";
 
-// LIST
 export const getHrRules = () => ({
-  type: types.GET_HR_RULES,
+  type: GET_HR_RULES,
 });
 
 export const getHrRulesSuccess = (rules) => ({
-  type: types.GET_HR_RULES_SUCCESS,
+  type: GET_HR_RULES_SUCCESS,
   payload: rules,
 });
 
 export const getHrRulesFail = (error) => ({
-  type: types.GET_HR_RULES_FAIL,
+  type: GET_HR_RULES_FAIL,
   payload: error,
 });
 
-// CREATE
 export const createHrRule = (rule) => ({
-  type: types.CREATE_HR_RULE,
+  type: CREATE_HR_RULE,
   payload: rule,
 });
 
-export const createHrRuleSuccess = (rule) => ({
-  type: types.CREATE_HR_RULE_SUCCESS,
-  payload: rule,
+export const createHrRuleSuccess = () => ({
+  type: CREATE_HR_RULE_SUCCESS,
 });
 
 export const createHrRuleFail = (error) => ({
-  type: types.CREATE_HR_RULE_FAIL,
+  type: CREATE_HR_RULE_FAIL,
   payload: error,
 });
 
-// UPDATE
 export const updateHrRule = (rule) => ({
-  type: types.UPDATE_HR_RULE,
+  type: UPDATE_HR_RULE,
   payload: rule,
 });
 
-export const updateHrRuleSuccess = (rule) => ({
-  type: types.UPDATE_HR_RULE_SUCCESS,
-  payload: rule,
+export const updateHrRuleSuccess = () => ({
+  type: UPDATE_HR_RULE_SUCCESS,
 });
 
 export const updateHrRuleFail = (error) => ({
-  type: types.UPDATE_HR_RULE_FAIL,
+  type: UPDATE_HR_RULE_FAIL,
   payload: error,
 });
 
-// DELETE
 export const deleteHrRule = (rule) => ({
-  type: types.DELETE_HR_RULE,
+  type: DELETE_HR_RULE,
   payload: rule,
 });
 
-export const deleteHrRuleSuccess = (rule) => ({
-  type: types.DELETE_HR_RULE_SUCCESS,
-  payload: rule,
+export const deleteHrRuleSuccess = () => ({
+  type: DELETE_HR_RULE_SUCCESS,
 });
 
 export const deleteHrRuleFail = (error) => ({
-  type: types.DELETE_HR_RULE_FAIL,
+  type: DELETE_HR_RULE_FAIL,
   payload: error,
 });

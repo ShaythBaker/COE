@@ -1,10 +1,16 @@
 // src/modules/attachments/attachments.controller.js
 const dbService = require("../../core/dbService");
-const pool = require("../../core/db");
-const { uploadBufferToS3 } = require("../../core/s3");
+const { uploadBufferToS3, getPresignedUrl } = require("../../core/s3");
 
 const ATTACHMENTS_TABLE = "COE_TBL_ATTACHMENTS";
 const FAR_FUTURE_ENDA = "9999-12-31 00:00:00";
+
+// Helper: COMPANY_ID from JWT user or session (backend only)
+function getCompanyId(req) {
+  if (req.user && req.user.COMPANY_ID) return req.user.COMPANY_ID;
+  if (req.session && req.session.COMPANY_ID) return req.session.COMPANY_ID;
+  return null;
+}
 
 /**
  * GET /api/attachments
@@ -13,47 +19,65 @@ const FAR_FUTURE_ENDA = "9999-12-31 00:00:00";
  *   ?FILE_CATEGORY=...
  *
  * Returns only "current" rows where NOW() is between BEGDA and ENDA
+ * NOTE: FILE_URL here is actually the S3 KEY, not direct URL.
  */
 async function listAttachments(req, res) {
   try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
     const { USER_ID, FILE_CATEGORY } = req.query;
-    const now = new Date();
-
-    let sql = `
-      SELECT
-        FILE_ID,
-        FILE_NAME,
-        FILE_URL,
-        FILE_TYPE,
-        USER_ID,
-        FILE_CATEGORY,
-        CREATED_BY,
-        CREATED_ON,
-        UPDATED_ON,
-        BEGDA,
-        ENDA
-      FROM ${ATTACHMENTS_TABLE}
-      WHERE BEGDA <= ?
-        AND (ENDA IS NULL OR ENDA >= ?)
-    `;
-
-    const params = [now, now];
+    const where = {};
 
     if (USER_ID) {
-      sql += " AND USER_ID = ?";
-      params.push(USER_ID);
+      where.USER_ID = USER_ID;
     }
 
     if (FILE_CATEGORY) {
-      sql += " AND FILE_CATEGORY = ?";
-      params.push(FILE_CATEGORY);
+      where.FILE_CATEGORY = FILE_CATEGORY;
     }
 
-    sql += " ORDER BY CREATED_ON DESC";
+    const rows = await dbService.find(
+      {
+        table: ATTACHMENTS_TABLE,
+        where,
+        fields: [
+          "FILE_ID",
+          "FILE_NAME",
+          "FILE_URL", // S3 key
+          "FILE_TYPE",
+          "USER_ID",
+          "FILE_CATEGORY",
+          "FILE_DESCRIPTION",
+          "CREATED_BY",
+          "CREATED_ON",
+          "UPDATED_ON",
+          "BEGDA",
+          "ENDA",
+        ],
+        orderBy: "CREATED_ON DESC",
+      },
+      companyId
+    );
 
-    const [rows] = await pool.query(sql, params);
+    const now = new Date();
 
-    return res.json(rows);
+    // Apply BEGDA/ENDA filter in JS
+    const currentRows = rows.filter((r) => {
+      const begda = r.BEGDA ? new Date(r.BEGDA) : null;
+      const enda = r.ENDA ? new Date(r.ENDA) : null;
+
+      const begdaOk = !begda || begda <= now;
+      const endaOk = !enda || enda >= now;
+
+      return begdaOk && endaOk;
+    });
+
+    return res.json(currentRows);
   } catch (err) {
     console.error("listAttachments error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -63,20 +87,31 @@ async function listAttachments(req, res) {
 /**
  * GET /api/attachments/:FILE_ID
  * Returns a single row by primary key (any version)
+ * NOTE: FILE_URL here is actually the S3 KEY, not direct URL.
  */
 async function getAttachmentById(req, res) {
   try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
     const FILE_ID = parseInt(req.params.FILE_ID, 10);
 
     if (!FILE_ID || Number.isNaN(FILE_ID)) {
       return res.status(400).json({ message: "Invalid FILE_ID" });
     }
 
-    const rows = await dbService.find({
-      table: ATTACHMENTS_TABLE,
-      where: { FILE_ID },
-      limit: 1,
-    });
+    const rows = await dbService.find(
+      {
+        table: ATTACHMENTS_TABLE,
+        where: { FILE_ID },
+        limit: 1,
+      },
+      companyId
+    );
 
     if (!rows.length) {
       return res.status(404).json({ message: "Attachment not found" });
@@ -90,18 +125,76 @@ async function getAttachmentById(req, res) {
 }
 
 /**
+ * GET /api/attachments/:FILE_ID/url
+ * Returns a short-lived presigned URL for downloading the file.
+ */
+async function getAttachmentPresignedUrl(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const FILE_ID = parseInt(req.params.FILE_ID, 10);
+
+    if (!FILE_ID || Number.isNaN(FILE_ID)) {
+      return res.status(400).json({ message: "Invalid FILE_ID" });
+    }
+
+    const rows = await dbService.find(
+      {
+        table: ATTACHMENTS_TABLE,
+        where: { FILE_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Attachment not found" });
+    }
+
+    const attachment = rows[0];
+
+    if (!attachment.FILE_URL) {
+      return res.status(400).json({ message: "Attachment has no S3 key" });
+    }
+
+    // FILE_URL contains the S3 key
+    const key = attachment.FILE_URL;
+
+    // 5 minutes validity; adjust if you like
+    const expiresIn = 300;
+    const url = await getPresignedUrl(key, expiresIn);
+
+    return res.json({
+      FILE_ID,
+      FILE_NAME: attachment.FILE_NAME,
+      url,
+      expiresIn,
+    });
+  } catch (err) {
+    console.error("getAttachmentPresignedUrl error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
  * POST /api/attachments
  *
  * Content-Type: multipart/form-data
  * Fields:
  *   file           -> the uploaded file (required)
- *   USER_ID        -> user ID (required)
- *   FILE_CATEGORY  -> optional category, e.g. "CV"
+ *   USER_ID        -> user ID (required - owner/subject of file)
+ *   FILE_CATEGORY  -> optional category, e.g. "CV" (from frontend)
  *   FILE_NAME      -> optional custom display name; defaults to original filename
  *
  * Rules:
  * - File is uploaded to S3.
- * - FILE_URL = S3 public URL
+ * - S3 KEY format: attachments/{COMPANY_ID}/{FILE_CATEGORY}/timestamp-random.ext
+ * - FILE_URL = S3 OBJECT KEY (not public URL)
  * - FILE_TYPE = file.mimetype
  * - CREATED_BY = session user (req.user.USER_ID)
  * - BEGDA = NOW()
@@ -109,10 +202,18 @@ async function getAttachmentById(req, res) {
  */
 async function createAttachment(req, res) {
   try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
     const file = req.file;
     const {
       USER_ID,
       FILE_CATEGORY,
+      FILE_DESCRIPTION,
       FILE_NAME, // optional custom label
     } = req.body;
 
@@ -131,34 +232,45 @@ async function createAttachment(req, res) {
 
     const now = new Date();
 
-    // Upload to S3
+    // Upload to S3 (company-based path)
     const { originalname, mimetype, buffer } = file;
 
-    const uploadResult = await uploadBufferToS3({
+    const { key } = await uploadBufferToS3({
       buffer,
       mimeType: mimetype,
-      userId: USER_ID,
+      companyId, // 👈 from backend
       originalName: originalname,
-      category: FILE_CATEGORY,
+      category: FILE_CATEGORY, // 👈 from frontend
     });
 
     const dbFileName = FILE_NAME || originalname || "file";
 
-    const result = await dbService.insert(ATTACHMENTS_TABLE, {
-      FILE_NAME: dbFileName,
-      FILE_URL: uploadResult.url,
-      FILE_TYPE: mimetype,
-      USER_ID,
-      FILE_CATEGORY: FILE_CATEGORY || null,
-      CREATED_BY: userFromToken.USER_ID,
-      BEGDA: now,
-      ENDA: FAR_FUTURE_ENDA,
-    });
+    const result = await dbService.insert(
+      ATTACHMENTS_TABLE,
+      {
+        FILE_NAME: dbFileName,
+        FILE_URL: key, // store the S3 key
+        FILE_TYPE: mimetype,
+        USER_ID,
+        FILE_CATEGORY: FILE_CATEGORY || null,
+        FILE_DESCRIPTION: FILE_DESCRIPTION || null,
+        CREATED_BY: userFromToken.USER_ID,
+        BEGDA: now,
+        ENDA: FAR_FUTURE_ENDA,
+      },
+      companyId
+    );
+
+    // Optionally return a presigned URL immediately (short-lived)
+    const expiresIn = 300;
+    const presignedUrl = await getPresignedUrl(key, expiresIn);
 
     return res.status(201).json({
       message: "Attachment created",
       FILE_ID: result.insertId,
-      FILE_URL: uploadResult.url,
+      S3_KEY: key,
+      url: presignedUrl,
+      expiresIn,
     });
   } catch (err) {
     console.error("createAttachment error:", err);
@@ -170,10 +282,8 @@ async function createAttachment(req, res) {
  * PUT /api/attachments/:FILE_ID
  *
  * Versioned "update":
- * - We do NOT modify existing row.
- * - We set ENDA of old row to NOW() (+ UPDATED_ON = NOW()).
- * - Then insert a NEW row with updated data and:
- *     BEGDA = NOW(), ENDA = 9999-12-31 00:00:00
+ * - Close old row by setting ENDA + UPDATED_ON
+ * - Insert new row with BEGDA = NOW, ENDA = far future
  *
  * Content-Type: multipart/form-data
  * BODY: any subset of fields + optional file:
@@ -184,11 +294,18 @@ async function createAttachment(req, res) {
  *   "FILE_CATEGORY": "..."
  * }
  *
- * If a new file is present, it is uploaded to S3 and new FILE_URL/FILE_TYPE are used.
- * Otherwise, old FILE_URL/FILE_TYPE are preserved.
+ * If a new file is present, it is uploaded to S3 => new FILE_URL (KEY) and FILE_TYPE.
+ * Otherwise, we keep the old FILE_URL/FILE_TYPE.
  */
 async function updateAttachment(req, res) {
   try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
     const FILE_ID = parseInt(req.params.FILE_ID, 10);
 
     if (!FILE_ID || Number.isNaN(FILE_ID)) {
@@ -200,12 +317,15 @@ async function updateAttachment(req, res) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // 1) Get the current record from DB by ID
-    const existingRows = await dbService.find({
-      table: ATTACHMENTS_TABLE,
-      where: { FILE_ID },
-      limit: 1,
-    });
+    // 1) Get the current record from DB by ID (scoped by COMPANY_ID)
+    const existingRows = await dbService.find(
+      {
+        table: ATTACHMENTS_TABLE,
+        where: { FILE_ID },
+        limit: 1,
+      },
+      companyId
+    );
 
     if (!existingRows.length) {
       return res.status(404).json({ message: "Attachment not found" });
@@ -223,35 +343,32 @@ async function updateAttachment(req, res) {
         UPDATED_BY: userFromToken.USER_ID,
         UPDATED_ON: now,
       },
-      { FILE_ID }
+      { FILE_ID },
+      companyId
     );
 
     // Step 2: insert the new record
     const file = req.file;
-    const {
-      FILE_NAME,
-      USER_ID,
-      FILE_CATEGORY,
-    } = req.body;
+    const { FILE_NAME, USER_ID, FILE_CATEGORY, FILE_DESCRIPTION } = req.body;
 
     let newFileName = oldRow.FILE_NAME;
-    let newFileUrl = oldRow.FILE_URL;
+    let newFileKey = oldRow.FILE_URL; // keep old key by default
     let newFileType = oldRow.FILE_TYPE;
 
     // If a new file is uploaded, push it to S3
     if (file) {
       const { originalname, mimetype, buffer } = file;
 
-      const uploadResult = await uploadBufferToS3({
+      const { key } = await uploadBufferToS3({
         buffer,
         mimeType: mimetype,
-        userId: USER_ID || oldRow.USER_ID,
+        companyId, // 👈 backend
         originalName: originalname,
-        category: FILE_CATEGORY || oldRow.FILE_CATEGORY,
+        category: FILE_CATEGORY || oldRow.FILE_CATEGORY, // 👈 frontend/old
       });
 
       newFileName = FILE_NAME || originalname || oldRow.FILE_NAME;
-      newFileUrl = uploadResult.url;
+      newFileKey = key;
       newFileType = mimetype;
     } else {
       // No new file – only metadata update
@@ -260,23 +377,36 @@ async function updateAttachment(req, res) {
 
     const newRow = {
       FILE_NAME: newFileName,
-      FILE_URL: newFileUrl,
+      FILE_URL: newFileKey, // S3 key
       FILE_TYPE: newFileType,
       USER_ID: USER_ID !== undefined ? USER_ID : oldRow.USER_ID,
       FILE_CATEGORY:
         FILE_CATEGORY !== undefined ? FILE_CATEGORY : oldRow.FILE_CATEGORY,
+      FILE_CATEGORY:
+        FILE_DESCRIPTION !== undefined
+          ? FILE_DESCRIPTION
+          : oldRow.FILE_DESCRIPTION,
       CREATED_BY: userFromToken.USER_ID, // who created this new version
       BEGDA: now,
       ENDA: FAR_FUTURE_ENDA,
     };
 
-    const insertResult = await dbService.insert(ATTACHMENTS_TABLE, newRow);
+    const insertResult = await dbService.insert(
+      ATTACHMENTS_TABLE,
+      newRow,
+      companyId
+    );
+
+    const expiresIn = 300;
+    const presignedUrl = await getPresignedUrl(newFileKey, expiresIn);
 
     return res.json({
       message: "Attachment updated (old record delimited, new record inserted)",
       OLD_FILE_ID: FILE_ID,
       NEW_FILE_ID: insertResult.insertId,
-      FILE_URL: newRow.FILE_URL,
+      S3_KEY: newFileKey,
+      url: presignedUrl,
+      expiresIn,
     });
   } catch (err) {
     console.error("updateAttachment error:", err);
@@ -289,21 +419,31 @@ async function updateAttachment(req, res) {
  *
  * Logical delete:
  * - Only sets ENDA = NOW(), UPDATED_ON = NOW()
- * - (S3 object is NOT deleted — you can add that later if needed.)
+ * - File remains in S3 (can add real delete later if you want).
  */
 async function deleteAttachment(req, res) {
   try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
     const FILE_ID = parseInt(req.params.FILE_ID, 10);
 
     if (!FILE_ID || Number.isNaN(FILE_ID)) {
       return res.status(400).json({ message: "Invalid FILE_ID" });
     }
 
-    const existingRows = await dbService.find({
-      table: ATTACHMENTS_TABLE,
-      where: { FILE_ID },
-      limit: 1,
-    });
+    const existingRows = await dbService.find(
+      {
+        table: ATTACHMENTS_TABLE,
+        where: { FILE_ID },
+        limit: 1,
+      },
+      companyId
+    );
 
     if (!existingRows.length) {
       return res.status(404).json({ message: "Attachment not found" });
@@ -314,7 +454,8 @@ async function deleteAttachment(req, res) {
     await dbService.update(
       ATTACHMENTS_TABLE,
       { ENDA: now, UPDATED_ON: now },
-      { FILE_ID }
+      { FILE_ID },
+      companyId
     );
 
     return res.json({ message: "Attachment deleted (ended)" });
@@ -327,6 +468,7 @@ async function deleteAttachment(req, res) {
 module.exports = {
   listAttachments,
   getAttachmentById,
+  getAttachmentPresignedUrl,
   createAttachment,
   updateAttachment,
   deleteAttachment,

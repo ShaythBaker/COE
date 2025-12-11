@@ -69,7 +69,7 @@ const HrUsersCreateInner = () => {
       LAST_NAME: "",
       EMAIL: "",
       PASSWORD: "",
-      DEPATRMENT_ID: 10,
+      COMPANY_ID: 10,
       PHONE_NUMBER: "",
       ACTIVE_STATUS: true,
       ROLE_IDS: [],
@@ -80,9 +80,9 @@ const HrUsersCreateInner = () => {
       LAST_NAME: Yup.string().required("Please enter last name"),
       EMAIL: Yup.string().email("Invalid email").required("Please enter email"),
       PASSWORD: Yup.string().required("Please enter password"),
-      DEPATRMENT_ID: Yup.number()
+      COMPANY_ID: Yup.number()
         .typeError("Department must be a number")
-        .required("Please enter department id"),
+        .required("Please enter Company id"),
       PHONE_NUMBER: Yup.string().required("Please enter phone number"),
     }),
     onSubmit: (values) => {
@@ -92,7 +92,7 @@ const HrUsersCreateInner = () => {
         EMAIL: values.EMAIL,
         PASSWORD: values.PASSWORD,
         PROFILE_IMG: values.PROFILE_IMG,
-        DEPATRMENT_ID: Number(values.DEPATRMENT_ID),
+        COMPANY_ID: Number(values.COMPANY_ID),
         PHONE_NUMBER: values.PHONE_NUMBER,
         ACTIVE_STATUS: values.ACTIVE_STATUS ? 1 : 0,
         ROLE_IDS: (values.ROLE_IDS || []).map((id) => Number(id)),
@@ -301,25 +301,25 @@ const HrUsersCreateInner = () => {
                   <Row>
                     <Col md={6}>
                       <div className="mb-3">
-                        <Label className="form-label">Department ID</Label>
+                        <Label className="form-label">Company ID</Label>
                         <Input
-                          name="DEPATRMENT_ID"
+                          name="COMPANY_ID"
                           type="number"
-                          placeholder="Enter department ID"
+                          placeholder="Enter company ID"
                           onChange={validation.handleChange}
                           onBlur={validation.handleBlur}
-                          value={validation.values.DEPATRMENT_ID || ""}
+                          value={validation.values.COMPANY_ID || ""}
                           invalid={
-                            validation.touched.DEPATRMENT_ID &&
-                            validation.errors.DEPATRMENT_ID
+                            validation.touched.COMPANY_ID &&
+                            validation.errors.COMPANY_ID
                               ? true
                               : false
                           }
                         />
-                        {validation.touched.DEPATRMENT_ID &&
-                        validation.errors.DEPATRMENT_ID ? (
+                        {validation.touched.COMPANY_ID &&
+                        validation.errors.COMPANY_ID ? (
                           <FormFeedback type="invalid">
-                            {validation.errors.DEPATRMENT_ID}
+                            {validation.errors.COMPANY_ID}
                           </FormFeedback>
                         ) : null}
                       </div>

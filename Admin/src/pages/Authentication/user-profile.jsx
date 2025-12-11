@@ -34,7 +34,23 @@ import { usePermissions } from "../../helpers/usePermissions";
 
 import { editProfile, resetProfileFlag } from "/src/store/actions";
 
+import {
+  uploadAttachmentApi,
+  getListByKey,
+  getUserAttachmentsApi,
+  getAttachmentUrlApi,
+} from "../../helpers/fakebackend_helper";
+
 const UserProfile = () => {
+  const getCategoryId = (cat) => cat?.id || cat?.ID || cat?.LIST_ITEM_ID;
+  const getCategoryName = (cat) => cat?.name || cat?.NAME || cat?.ITEM_NAME;
+
+  const [viewingDocId, setViewingDocId] = useState(null);
+  const [viewError, setViewError] = useState(null);
+
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewModalData, setViewModalData] = useState(null);
+
   document.title = "Profile | Travco - COE - React Admin & Dashboard Template";
 
   const dispatch = useDispatch();
@@ -83,17 +99,57 @@ const UserProfile = () => {
       : false;
 
   const fetchDocuments = async (userId) => {
-    // FRONTEND-ONLY: no backend call yet
-    setDocumentsLoading(false);
-    setDocumentsError(null);
-    // Keep whatever is already in `documents`; do not fetch from server.
+    try {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+
+      // GET /api/attachments?FILE_CATEGORY=USER_DOCUMENTS&USER_ID={userId}
+      const response = await getUserAttachmentsApi("USER_DOCUMENTS", userId);
+
+      const items = Array.isArray(response) ? response : [];
+
+      const normalized = items.map((item) => ({
+        ...item,
+        id: item.FILE_ID ?? item.id,
+        file_name: item.FILE_NAME ?? item.file_name,
+        created_at: item.CREATED_ON ?? item.CREATED_AT ?? item.created_at,
+        category_name: item.FILE_CATEGORY ?? item.category_name,
+        file_description: item.FILE_DESCRIPTION ?? item.file_description,
+      }));
+
+      setDocuments(normalized);
+    } catch (e) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message || e?.message || "Failed to load documents";
+      setDocumentsError(msg);
+    } finally {
+      setDocumentsLoading(false);
+    }
   };
 
   const fetchCategories = async () => {
-    // FRONTEND-ONLY: no backend call yet
-    setCategoriesLoading(false);
-    setCategoriesError(null);
-    // Leave categories as-is; backend will populate in the future.
+    try {
+      setCategoriesLoading(true);
+      setCategoriesError(null);
+
+      // GET /api/lists/by-key/USER_DOCUMENTS
+      const response = await getListByKey("USER_DOCUMENTS");
+
+      // response shape:
+      // { LIST: {...}, ITEMS: [ { LIST_ITEM_ID, ITEM_NAME, ... }, ... ] }
+      const items = (response && response.ITEMS) || [];
+      setCategories(items);
+    } catch (e) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to load document types";
+      setCategoriesError(msg);
+    } finally {
+      setCategoriesLoading(false);
+    }
   };
 
   const handleOpenDocumentDialog = () => {
@@ -107,6 +163,78 @@ const UserProfile = () => {
   const handleCloseDocumentDialog = () => {
     if (uploadLoading) return;
     setIsDocumentDialogOpen(false);
+  };
+
+  const handleViewDocument = async (doc) => {
+    const fileId = doc.FILE_ID || doc.id || doc.ID;
+
+    if (!fileId) {
+      setViewError("Missing file identifier");
+      return;
+    }
+
+    try {
+      setViewingDocId(fileId);
+      setViewError(null);
+
+      // Call backend: GET /api/attachments/{FILE_ID}/url
+      const res = await getAttachmentUrlApi(fileId);
+
+      const viewUrl = res?.url || res?.URL || res?.FILE_URL || res?.file_url;
+      const expiresIn = res?.expiresIn || 300; // default 300 seconds
+
+      if (!viewUrl) {
+        setViewError("File URL is not available.");
+        return;
+      }
+
+      // Store data and open confirmation modal
+      setViewModalData({
+        doc,
+        url: viewUrl,
+        expiresIn,
+      });
+      setViewModalOpen(true);
+    } catch (e) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message || e?.message || "Failed to open document";
+      setViewError(msg);
+    } finally {
+      setViewingDocId(null);
+    }
+  };
+
+  const handleCloseViewModal = () => {
+    setViewModalOpen(false);
+    setViewModalData(null);
+    setViewError(null);
+  };
+
+  const handleOpenViewInPopup = () => {
+    if (!viewModalData?.url) {
+      setViewError("File URL is not available.");
+      return;
+    }
+
+    const popup = window.open(
+      "",
+      "DocumentPreview",
+      "width=900,height=700,resizable=yes,scrollbars=yes"
+    );
+
+    if (!popup) {
+      setViewError(
+        "Popup blocked! Please allow popups for this site to view attachments."
+      );
+      return;
+    }
+
+    popup.location.href = viewModalData.url;
+
+    // Close modal once we trigger the popup
+    setViewModalOpen(false);
+    setViewModalData(null);
   };
 
   const handleDrop = (acceptedFiles) => {
@@ -125,28 +253,38 @@ const UserProfile = () => {
       setUploadLoading(true);
       setUploadError(null);
 
-      // FRONTEND-ONLY: create a fake document object in memory
-      const newDoc = {
-        id: Date.now(),
-        file_name: uploadFile.name,
-        category_id: selectedCategoryId,
-        created_at: new Date().toISOString(),
-        // Optional local preview URL (not used for backend)
-        url: URL.createObjectURL(uploadFile),
-      };
+      // find selected category object
+      const selectedCat = categories.find(
+        (c) => String(getCategoryId(c)) === String(selectedCategoryId)
+      );
 
-      setDocuments((prev) => [...prev, newDoc]);
+      const fileDescription = selectedCat ? getCategoryName(selectedCat) : "";
+
+      const formData = new FormData();
+      formData.append("USER_ID", idx);
+      formData.append("FILE_CATEGORY", "USER_DOCUMENTS"); // keep as is
+      formData.append("FILE_NAME", uploadFile.name);
+      formData.append("FILE_DESCRIPTION", fileDescription); // 👈 new
+      formData.append("file", uploadFile);
+
+      await uploadAttachmentApi(formData);
+
+      // refresh list from API
+      await fetchDocuments(idx);
 
       setIsDocumentDialogOpen(false);
       setUploadFile(null);
       setSelectedCategoryId("");
     } catch (e) {
       console.error(e);
-      setUploadError(e.message || "Failed to upload document");
+      const msg =
+        e?.response?.data?.message || e?.message || "Failed to upload document";
+      setUploadError(msg);
     } finally {
       setUploadLoading(false);
     }
   };
+
   useEffect(() => {
     if (!idx) return;
     fetchDocuments(idx);
@@ -175,7 +313,7 @@ const UserProfile = () => {
       setLastName(u.LAST_NAME || "");
       setEmail(u.EMAIL || u.email || "");
       setPhoneNumber(u.PHONE_NUMBER || "");
-      setDepartmentId(u.DEPATRMENT_ID || u.DEPARTMENT_ID || "");
+      setDepartmentId(u.COMPANY_ID || u.COMPANY_ID || "");
       setIdx(u.USER_ID || u.uid || 1);
     }
 
@@ -187,7 +325,7 @@ const UserProfile = () => {
   }, [dispatch, success]);
 
   const fullName =
-    (firstName || lastName)
+    firstName || lastName
       ? `${firstName || ""} ${lastName || ""}`.trim()
       : email;
 
@@ -331,12 +469,10 @@ const UserProfile = () => {
                         onBlur={validation.handleBlur}
                         value={validation.values.email || ""}
                         invalid={
-                          validation.touched.email &&
-                          !!validation.errors.email
+                          validation.touched.email && !!validation.errors.email
                         }
                       />
-                      {validation.touched.email &&
-                      validation.errors.email ? (
+                      {validation.touched.email && validation.errors.email ? (
                         <FormFeedback type="invalid">
                           {validation.errors.email}
                         </FormFeedback>
@@ -372,11 +508,11 @@ const UserProfile = () => {
                 <Row>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label className="form-label">Department ID</Label>
+                      <Label className="form-label">Company ID</Label>
                       <Input
                         name="departmentId"
                         type="text"
-                        placeholder="Enter Department ID"
+                        placeholder="Enter Cpmpany ID"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
                         value={validation.values.departmentId || ""}
@@ -412,12 +548,6 @@ const UserProfile = () => {
                     </div>
                   </Col>
                 </Row>
-
-                {/* <div className="text-center mt-4">
-                  <Button type="submit" color="danger">
-                    Update Profile
-                  </Button>
-                </div> */}
               </Form>
             </CardBody>
           </Card>
@@ -439,6 +569,12 @@ const UserProfile = () => {
                 </Alert>
               )}
 
+              {viewError && (
+                <Alert color="danger" fade={false}>
+                  {viewError}
+                </Alert>
+              )}
+
               {documentsLoading ? (
                 <p>Loading documents...</p>
               ) : (
@@ -449,7 +585,7 @@ const UserProfile = () => {
                         <thead>
                           <tr>
                             <th>File Name</th>
-                            <th>Category</th>
+                            <th>Type</th>
                             <th>Created</th>
                             <th>Action</th>
                           </tr>
@@ -460,24 +596,32 @@ const UserProfile = () => {
                               categories && Array.isArray(categories)
                                 ? categories.find(
                                     (c) =>
-                                      c.id === doc.category_id ||
-                                      c.ID === doc.category_id
+                                      String(getCategoryId(c)) ===
+                                      String(doc.category_id)
                                   )
                                 : null;
 
                             const categoryName =
-                              (category && (category.name || category.NAME)) ||
                               doc.category_name ||
+                              doc.FILE_CATEGORY ||
+                              (category && getCategoryName(category)) ||
                               "-";
 
+                            // 👇 New typeName: prefer FILE_DESCRIPTION, fallback to old categoryName
+                            const typeName =
+                              doc.file_description ||
+                              doc.FILE_DESCRIPTION ||
+                              categoryName;
+
                             const createdRaw =
-                              doc.created_at || doc.createdAt || doc.CREATED_AT;
+                              doc.created_at ||
+                              doc.createdAt ||
+                              doc.CREATED_AT ||
+                              doc.CREATED_ON;
+
                             const createdFormatted = createdRaw
                               ? new Date(createdRaw).toLocaleDateString()
                               : "-";
-
-                            const fileUrl =
-                              doc.url || doc.file_url || doc.FILE_URL || doc.link;
 
                             const fileName =
                               doc.file_name ||
@@ -486,29 +630,26 @@ const UserProfile = () => {
                               doc.FILE_NAME ||
                               "Document";
 
+                            const docKey =
+                              doc.id || doc.ID || doc.FILE_ID || fileName;
+                            const isOpening =
+                              viewingDocId ===
+                              (doc.FILE_ID || doc.id || doc.ID);
+
                             return (
-                              <tr key={doc.id || doc.ID || fileName}>
+                              <tr key={docKey}>
                                 <td>{fileName}</td>
-                                <td>{categoryName}</td>
+                                <td>{typeName}</td>
                                 <td>{createdFormatted}</td>
                                 <td>
-                                  {fileUrl ? (
-                                    <Button
-                                      color="link"
-                                      size="sm"
-                                      onClick={() =>
-                                        window.open(
-                                          fileUrl,
-                                          "_blank",
-                                          "noopener,noreferrer"
-                                        )
-                                      }
-                                    >
-                                      View
-                                    </Button>
-                                  ) : (
-                                    <span className="text-muted">No file</span>
-                                  )}
+                                  <Button
+                                    color="link"
+                                    size="sm"
+                                    onClick={() => handleViewDocument(doc)}
+                                    disabled={isOpening}
+                                  >
+                                    {isOpening ? "Opening..." : "View"}
+                                  </Button>
                                 </td>
                               </tr>
                             );
@@ -517,7 +658,9 @@ const UserProfile = () => {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-muted mb-0">No documents uploaded yet.</p>
+                    <p className="text-muted mb-0">
+                      No documents uploaded yet.
+                    </p>
                   )}
                 </>
               )}
@@ -531,7 +674,47 @@ const UserProfile = () => {
             </CardBody>
           </Card>
 
-          <Modal isOpen={isDocumentDialogOpen} toggle={handleCloseDocumentDialog}>
+          {/* View Document Confirmation Modal */}
+          <Modal isOpen={viewModalOpen} toggle={handleCloseViewModal}>
+            <ModalHeader toggle={handleCloseViewModal}>
+              View Document
+            </ModalHeader>
+            <ModalBody>
+              <p className="mb-2">
+                You are about to open the following document:
+              </p>
+              <p>
+                <strong>
+                  {viewModalData?.doc?.FILE_NAME ||
+                    viewModalData?.doc?.file_name ||
+                    "Document"}
+                </strong>
+              </p>
+
+              <p className="mb-2">
+                For security reasons, this file link will expire in{" "}
+                <strong>{viewModalData?.expiresIn ?? 300} seconds</strong>.
+              </p>
+
+              <p className="text-muted mb-0">
+                After it expires, you will need to click "View" again to request
+                a new secure link.
+              </p>
+            </ModalBody>
+            <ModalFooter>
+              <Button color="secondary" onClick={handleCloseViewModal}>
+                Cancel
+              </Button>
+              <Button color="primary" onClick={handleOpenViewInPopup}>
+                Open Document
+              </Button>
+            </ModalFooter>
+          </Modal>
+
+          <Modal
+            isOpen={isDocumentDialogOpen}
+            toggle={handleCloseDocumentDialog}
+          >
             <ModalHeader toggle={handleCloseDocumentDialog}>
               Add New Document
             </ModalHeader>
@@ -551,11 +734,15 @@ const UserProfile = () => {
                     onChange={(e) => setSelectedCategoryId(e.target.value)}
                   >
                     <option value="">Select category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id || cat.ID} value={cat.id || cat.ID}>
-                        {cat.name || cat.NAME}
-                      </option>
-                    ))}
+                    {categories.map((cat) => {
+                      const id = getCategoryId(cat);
+                      const name = getCategoryName(cat);
+                      return (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      );
+                    })}
                   </Input>
                 </div>
                 {canManageCategories && (
@@ -578,7 +765,10 @@ const UserProfile = () => {
                 <Dropzone onDrop={handleDrop} multiple={false}>
                   {({ getRootProps, getInputProps }) => (
                     <div className="dropzone">
-                      <div className="dz-message needsclick" {...getRootProps()}>
+                      <div
+                        className="dz-message needsclick"
+                        {...getRootProps()}
+                      >
                         <input {...getInputProps()} />
                         {!uploadFile ? (
                           <>

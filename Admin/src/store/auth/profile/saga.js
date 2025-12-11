@@ -43,14 +43,13 @@ function* editProfile({ payload: { user } }) {
         u.LAST_NAME = user.lastName;
         u.EMAIL = user.email;
         u.PHONE_NUMBER = user.phoneNumber;
-        u.DEPATRMENT_ID = user.departmentId;
+        u.COMPANY_ID = user.departmentId;
 
         authUser.user = u;
         authUser.USER = u;
         // optional convenience name
         authUser.username =
-          (user.firstName || "") +
-          (user.lastName ? ` ${user.lastName}` : "");
+          (user.firstName || "") + (user.lastName ? ` ${user.lastName}` : "");
 
         localStorage.setItem("authUser", JSON.stringify(authUser));
       }

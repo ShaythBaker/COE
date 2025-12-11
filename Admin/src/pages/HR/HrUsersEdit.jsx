@@ -25,7 +25,10 @@ import { useFormik } from "formik";
 
 import Breadcrumb from "../../components/Common/Breadcrumb";
 import RequireModule from "../../components/Auth/RequireModule";
-import { fileToBase64 } from "/src/helpers/image_helper";
+import {
+  uploadAttachmentApi,
+  getAttachmentUrlApi,
+} from "/src/helpers/fakebackend_helper";
 
 import {
   getHrEmployeeDetail,
@@ -173,25 +176,64 @@ const HrUsersEditInner = () => {
 };
 
 const EmployeeMetaCard = ({ user }) => {
-  const getProfileImgSrc = (base64) => {
-    if (!base64) return null;
-    if (base64.startsWith("data:")) return base64;
-    return `data:image/jpeg;base64,${base64}`;
-  };
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [loadingAvatar, setLoadingAvatar] = useState(false);
 
-  const src = getProfileImgSrc(user.PROFILE_IMG);
+  // Fetch current profile image URL when PROFILE_IMG is a FILE_ID
+  useEffect(() => {
+    const value = user.PROFILE_IMG;
+
+    if (!value) {
+      setAvatarUrl(null);
+      return;
+    }
+
+    // If it's a numeric FILE_ID -> call attachments/{FILE_ID}/url
+    if (typeof value === "number" || /^[0-9]+$/.test(String(value))) {
+      const fileId = Number(value);
+      setLoadingAvatar(true);
+
+      (async () => {
+        try {
+          const res = await getAttachmentUrlApi(fileId);
+          const data = res?.data || res || {};
+          setAvatarUrl(data.url || null);
+        } catch (err) {
+          console.error("Failed to load profile image URL:", err);
+          setAvatarUrl(null);
+        } finally {
+          setLoadingAvatar(false);
+        }
+      })();
+
+      return;
+    }
+
+    // Legacy behaviour: if it's a string but not numeric
+    if (typeof value === "string") {
+      if (value.startsWith("data:")) {
+        setAvatarUrl(value);
+      } else if (value.startsWith("http://") || value.startsWith("https://")) {
+        setAvatarUrl(value);
+      } else {
+        // assume legacy plain base64
+        setAvatarUrl(`data:image/jpeg;base64,${value}`);
+      }
+    }
+  }, [user.PROFILE_IMG]);
 
   const renderAvatar = () => {
-    if (src) {
+    if (avatarUrl) {
       return (
         <img
-          src={src}
+          src={avatarUrl}
           alt="avatar"
           className="avatar-md rounded-circle"
           style={{ objectFit: "cover" }}
         />
       );
     }
+
     const f = (user.FIRST_NAME || "").charAt(0).toUpperCase();
     const l = (user.LAST_NAME || "").charAt(0).toUpperCase();
     const initials = f || l ? `${f}${l}` : "?";
@@ -209,7 +251,11 @@ const EmployeeMetaCard = ({ user }) => {
     <>
       <Card>
         <CardBody className="text-center">
-          {renderAvatar()}
+          {loadingAvatar ? (
+            <Spinner size="sm" className="spinner-border text-success" />
+          ) : (
+            renderAvatar()
+          )}
           <h5 className="mt-3 mb-1">
             {user.FIRST_NAME} {user.LAST_NAME}
           </h5>
@@ -246,16 +292,57 @@ const HrUsersEditForm = ({
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const [profileImgPreview, setProfileImgPreview] = useState(() => {
-    if (!user.PROFILE_IMG) return null;
-    if (user.PROFILE_IMG.startsWith("data:")) return user.PROFILE_IMG;
-    return `data:image/jpeg;base64,${user.PROFILE_IMG}`;
-  });
+  const [profileImgPreview, setProfileImgPreview] = useState(null);
+  const [loadingExistingProfile, setLoadingExistingProfile] = useState(false);
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const rawProfileImg = user.PROFILE_IMG ?? null;
+
+  // Initial PROFILE_IMG value in formik: only numeric FILE_ID is allowed
+  const initialProfileImgValue = useMemo(() => {
+    if (
+      typeof rawProfileImg === "number" ||
+      /^[0-9]+$/.test(String(rawProfileImg || ""))
+    ) {
+      return Number(rawProfileImg);
+    }
+    // any non numeric (old base64, url, etc) is ignored for payload
+    return null;
+  }, [rawProfileImg]);
 
   const initialRoleIds = useMemo(
     () => (userRoles || []).map((r) => String(r.ROLE_ID)),
     [userRoles]
   );
+
+  // Fetch URL for existing FILE_ID to show preview
+  useEffect(() => {
+    const value = rawProfileImg;
+    if (
+      !value ||
+      !(typeof value === "number" || /^[0-9]+$/.test(String(value)))
+    ) {
+      setProfileImgPreview(null);
+      return;
+    }
+
+    const fileId = Number(value);
+    setLoadingExistingProfile(true);
+
+    (async () => {
+      try {
+        const res = await getAttachmentUrlApi(fileId);
+        const data = res?.data || res || {};
+        setProfileImgPreview(data.url || null);
+      } catch (err) {
+        console.error("Failed to load existing profile image URL:", err);
+        setProfileImgPreview(null);
+      } finally {
+        setLoadingExistingProfile(false);
+      }
+    })();
+  }, [rawProfileImg]);
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -263,20 +350,21 @@ const HrUsersEditForm = ({
       FIRST_NAME: user.FIRST_NAME || "",
       LAST_NAME: user.LAST_NAME || "",
       EMAIL: user.EMAIL || "",
-      DEPATRMENT_ID: user.DEPATRMENT_ID || 10,
+      COMPANY_ID: user.COMPANY_ID || 10,
       PHONE_NUMBER: user.PHONE_NUMBER || "",
       ACTIVE_STATUS:
         user.ACTIVE_STATUS === 1 || user.ACTIVE_STATUS === "1" ? true : false,
-      PROFILE_IMG: user.PROFILE_IMG || null,
+      // IMPORTANT: this is FILE_ID or null. No base64.
+      PROFILE_IMG: initialProfileImgValue,
       ROLE_IDS: initialRoleIds,
     },
     validationSchema: Yup.object({
       FIRST_NAME: Yup.string().required("Please enter first name"),
       LAST_NAME: Yup.string().required("Please enter last name"),
       EMAIL: Yup.string().email("Invalid email").required("Please enter email"),
-      DEPATRMENT_ID: Yup.number()
+      COMPANY_ID: Yup.number()
         .typeError("Department must be a number")
-        .required("Please enter department id"),
+        .required("Please enter Company id"),
       PHONE_NUMBER: Yup.string().required("Please enter phone number"),
     }),
     onSubmit: (values) => {
@@ -284,29 +372,66 @@ const HrUsersEditForm = ({
         FIRST_NAME: values.FIRST_NAME,
         LAST_NAME: values.LAST_NAME,
         EMAIL: values.EMAIL,
-        PROFILE_IMG: values.PROFILE_IMG,
-        DEPATRMENT_ID: Number(values.DEPATRMENT_ID),
+        // backend expects FILE_ID here, or null
+        PROFILE_IMG: values.PROFILE_IMG ? Number(values.PROFILE_IMG) : null,
+        COMPANY_ID: Number(values.COMPANY_ID),
         PHONE_NUMBER: values.PHONE_NUMBER,
         ACTIVE_STATUS: values.ACTIVE_STATUS ? 1 : 0,
-        ROLE_IDS: (values.ROLE_IDS || []).map((id) => Number(id)),
+        ROLE_IDS: (values.ROLE_IDS || []).map((rid) => Number(rid)),
       };
+
       dispatch(updateHrEmployee(id, payload));
     },
   });
 
   const handleProfileImageChange = async (e) => {
     const file = e.target.files?.[0];
+    setUploadError(null);
+
     if (!file) {
       validation.setFieldValue("PROFILE_IMG", null);
       setProfileImgPreview(null);
       return;
     }
+
     try {
-      const base64 = await fileToBase64(file);
-      validation.setFieldValue("PROFILE_IMG", base64);
-      setProfileImgPreview(URL.createObjectURL(file));
+      setUploadingProfile(true);
+
+      const formData = new FormData();
+      formData.append("USER_ID", user.USER_ID);
+      formData.append("FILE_CATEGORY", "PROFILE_IMG");
+      formData.append("FILE_NAME", file.name);
+      formData.append("file", file);
+
+      const res = await uploadAttachmentApi(formData);
+      const data = res?.data || res || {};
+
+      const { FILE_ID, url } = data;
+
+      // Save FILE_ID only – this is what backend now stores in PROFILE_IMG
+      if (FILE_ID) {
+        validation.setFieldValue("PROFILE_IMG", Number(FILE_ID));
+      } else {
+        validation.setFieldValue("PROFILE_IMG", null);
+      }
+
+      // Use URL from response as current preview
+      if (url) {
+        setProfileImgPreview(url);
+      } else {
+        setProfileImgPreview(null);
+      }
     } catch (err) {
       console.error("Image upload error:", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to upload profile image";
+      setUploadError(msg);
+      validation.setFieldValue("PROFILE_IMG", null);
+      setProfileImgPreview(null);
+    } finally {
+      setUploadingProfile(false);
     }
   };
 
@@ -314,7 +439,7 @@ const HrUsersEditForm = ({
     const idStr = String(roleId);
     const current = validation.values.ROLE_IDS || [];
     const next = current.includes(idStr)
-      ? current.filter((id) => id !== idStr)
+      ? current.filter((rid) => rid !== idStr)
       : [...current, idStr];
     validation.setFieldValue("ROLE_IDS", next);
   };
@@ -346,9 +471,7 @@ const HrUsersEditForm = ({
                   value={validation.values.FIRST_NAME || ""}
                   invalid={
                     validation.touched.FIRST_NAME &&
-                    validation.errors.FIRST_NAME
-                      ? true
-                      : false
+                    !!validation.errors.FIRST_NAME
                   }
                 />
                 {validation.touched.FIRST_NAME &&
@@ -371,9 +494,8 @@ const HrUsersEditForm = ({
                   onBlur={validation.handleBlur}
                   value={validation.values.LAST_NAME || ""}
                   invalid={
-                    validation.touched.LAST_NAME && validation.errors.LAST_NAME
-                      ? true
-                      : false
+                    validation.touched.LAST_NAME &&
+                    !!validation.errors.LAST_NAME
                   }
                 />
                 {validation.touched.LAST_NAME &&
@@ -399,9 +521,7 @@ const HrUsersEditForm = ({
                   onBlur={validation.handleBlur}
                   value={validation.values.EMAIL || ""}
                   invalid={
-                    validation.touched.EMAIL && validation.errors.EMAIL
-                      ? true
-                      : false
+                    validation.touched.EMAIL && !!validation.errors.EMAIL
                   }
                 />
                 {validation.touched.EMAIL && validation.errors.EMAIL && (
@@ -414,25 +534,23 @@ const HrUsersEditForm = ({
 
             <Col md={6}>
               <div className="mb-3">
-                <Label className="form-label">Department ID</Label>
+                <Label className="form-label">Company ID</Label>
                 <Input
-                  name="DEPATRMENT_ID"
+                  name="COMPANY_ID"
                   type="number"
-                  placeholder="Enter department ID"
+                  placeholder="Enter Company ID"
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
-                  value={validation.values.DEPATRMENT_ID || ""}
+                  value={validation.values.COMPANY_ID || ""}
                   invalid={
-                    validation.touched.DEPATRMENT_ID &&
-                    validation.errors.DEPATRMENT_ID
-                      ? true
-                      : false
+                    validation.touched.COMPANY_ID &&
+                    !!validation.errors.COMPANY_ID
                   }
                 />
-                {validation.touched.DEPATRMENT_ID &&
-                  validation.errors.DEPATRMENT_ID && (
+                {validation.touched.COMPANY_ID &&
+                  validation.errors.COMPANY_ID && (
                     <FormFeedback type="invalid">
-                      {validation.errors.DEPATRMENT_ID}
+                      {validation.errors.COMPANY_ID}
                     </FormFeedback>
                   )}
               </div>
@@ -453,9 +571,7 @@ const HrUsersEditForm = ({
                   value={validation.values.PHONE_NUMBER || ""}
                   invalid={
                     validation.touched.PHONE_NUMBER &&
-                    validation.errors.PHONE_NUMBER
-                      ? true
-                      : false
+                    !!validation.errors.PHONE_NUMBER
                   }
                 />
                 {validation.touched.PHONE_NUMBER &&
@@ -543,9 +659,26 @@ const HrUsersEditForm = ({
                   accept="image/*"
                   onChange={handleProfileImageChange}
                 />
-                <small className="text-muted">
-                  Optional. Will be stored as base64.
-                </small>
+                <div className="d-flex align-items-center mt-1">
+                  {(uploadingProfile || loadingExistingProfile) && (
+                    <>
+                      <Spinner size="sm" className="me-2" />
+                      <small className="text-muted">Loading image...</small>
+                    </>
+                  )}
+                  {!uploadingProfile && !loadingExistingProfile && (
+                    <small className="text-muted">
+                      Optional. File is uploaded to S3; only its FILE_ID is
+                      saved.
+                    </small>
+                  )}
+                </div>
+
+                {uploadError && (
+                  <div className="mt-1">
+                    <small className="text-danger">{uploadError}</small>
+                  </div>
+                )}
 
                 {profileImgPreview && (
                   <div className="mt-3">

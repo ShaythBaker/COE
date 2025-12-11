@@ -517,9 +517,7 @@ async function updateRolePermissions(req, res) {
     }
 
     // Validate that all items have MODULE_ID (no silent skip)
-    const invalidItem = PERMISSIONS.find(
-      (perm) => !perm || !perm.MODULE_ID
-    );
+    const invalidItem = PERMISSIONS.find((perm) => !perm || !perm.MODULE_ID);
     if (invalidItem) {
       return res.status(400).json({
         message: "Each permission item must include MODULE_ID",
@@ -607,7 +605,7 @@ async function getMyPermissions(req, res) {
         m.MODULE_NAME,
         m.DESCRIPTION AS MODULE_DESCRIPTION,
 
-        ur.DEPATRMENT_ID,
+        ur.COMPANY_ID,
         r.ROLE_ID,
         r.ROLE_CODE,
         r.ROLE_NAME,
@@ -669,7 +667,7 @@ async function getMyPermissions(req, res) {
         ROLE_ID: row.ROLE_ID,
         ROLE_CODE: row.ROLE_CODE,
         ROLE_NAME: row.ROLE_NAME,
-        DEPATRMENT_ID: row.DEPATRMENT_ID,
+        COMPANY_ID: row.COMPANY_ID,
         CAN_VIEW: row.CAN_VIEW ? 1 : 0,
         CAN_CREATE: row.CAN_CREATE ? 1 : 0,
         CAN_EDIT: row.CAN_EDIT ? 1 : 0,
