@@ -18,6 +18,10 @@ import SystemLists from "./SystemLists/reducer";
 import hrEmployees from "./hrEmployees/reducer";
 import HrRules from "./HrRules/reducer";
 
+//CONTRACTING
+
+import hotels from "./hotels/reducer";
+
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
 
@@ -92,7 +96,8 @@ const rootReducer = combineReducers({
   Permissions,
   hrEmployees,
   HrRules,
-  SystemLists
+  SystemLists,
+  hotels,
 });
 
 export default rootReducer;

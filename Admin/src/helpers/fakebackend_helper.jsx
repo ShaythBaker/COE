@@ -231,6 +231,43 @@ export const updateHrEmployeeApi = (id, data) => {
 });
 };
 
+
+// ========================
+// HOTELS (CONTRACTING)
+// ========================
+
+export const getHotelsApi = (params = {}) => {
+  // Clean params so we never send empty query values
+  const query = {};
+
+  // Only include if not empty/null/undefined
+  if (
+    params.ACTIVE_STATUS !== undefined &&
+    params.ACTIVE_STATUS !== null &&
+    params.ACTIVE_STATUS !== ""
+  ) {
+    query.ACTIVE_STATUS = params.ACTIVE_STATUS;
+  }
+
+  if (params.HOTEL_AREA !== undefined && params.HOTEL_AREA !== null && params.HOTEL_AREA !== "") {
+    query.HOTEL_AREA = params.HOTEL_AREA;
+  }
+
+  if (params.HOTEL_STARS !== undefined && params.HOTEL_STARS !== null && params.HOTEL_STARS !== "") {
+    query.HOTEL_STARS = params.HOTEL_STARS;
+  }
+
+  return get(url.GET_HOTELS, { params: query });
+};
+
+// ✅ Hotels create API: POST /api/hotels
+export const createHotel = (data) => post(url.HOTELS, data);
+
+export const getHotelById = (hotelId) =>
+  get(`${url.HOTELS}/${hotelId}`);
+
+
+
 // Register Method
 const postJwtRegister = (urlParam, data) => {
   return axios
@@ -449,9 +486,10 @@ export const getMailsListsId = (id) =>
 // GET /api/lists?ACTIVE_STATUS=1
 const getSystemLists = (params) => get(url.GET_SYSTEM_LISTS, { params });
 
-// GET /api/lists/:LIST_ID/items?ACTIVE_STATUS=1
-const getSystemListItems = (listId, params) =>
-  get(`${url.GET_SYSTEM_LIST_ITEMS}/${listId}/items`, { params });
+// GET /api/lists/by-key/:LIST_KEY
+
+export const getSystemListItems = (listKey, params) =>
+  get(`${url.GET_SYSTEM_LIST_ITEMS}/${listKey}`, { params });
 
 // POST /api/lists/:LIST_ID/items
 const createSystemListItem = (listId, data) =>
@@ -527,7 +565,7 @@ export {
   onAddReply,
   onAddComment,
   getSystemLists,
-  getSystemListItems,
+  //getSystemListItems,
   createSystemListItem,
   updateSystemListItem,
 };

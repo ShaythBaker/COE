@@ -25,6 +25,8 @@ const SidebarContent = (props) => {
   // NOTE: in docs this is usually "ACCESS_ROLES" – adjust if your backend uses a different code
   const canSeeAdmin = hasModule("ACCESS_ROLES");
 
+  const canSeeContracting = hasModule("CONTRACTING_USER");
+
   const ref = useRef(null);
   const location = useLocation();
 
@@ -177,7 +179,7 @@ const SidebarContent = (props) => {
         metis.dispose();
       }
     };
-  }, [canSeeAdmin, canSeeHr, activeMenu]);
+  }, [canSeeAdmin, canSeeHr, canSeeContracting, activeMenu]);
 
   // Re-run activeMenu on route change for highlight
   useEffect(() => {
@@ -255,6 +257,21 @@ const SidebarContent = (props) => {
                       {props.t("Rule Management")}
                     </Link>
                   </li>
+                </ul>
+              </li>
+            )}
+
+            {canSeeContracting && (
+              <li>
+                <Link to="/#" className="has-arrow">
+                  <i className="bx bx-building-house"></i>
+                  <span>{props.t("Contracting")}</span>
+                </Link>
+                <ul className="sub-menu" aria-expanded="false">
+                  <li>
+                    <Link to="/contracting/hotels">{props.t("Hotels")}</Link>
+                  </li>
+                  {/* later we can add more contracting items here */}
                 </ul>
               </li>
             )}

@@ -732,6 +732,7 @@ const UserProfile = () => {
                     type="select"
                     value={selectedCategoryId}
                     onChange={(e) => setSelectedCategoryId(e.target.value)}
+                    className="select2-selection"
                   >
                     <option value="">Select category</option>
                     {categories.map((cat) => {
