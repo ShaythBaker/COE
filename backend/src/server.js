@@ -9,6 +9,8 @@ const accessRoutes = require("./modules/access/access.routes");
 const attachmentsRoutes = require("./modules/attachments/attachments.routes");
 const listsRoutes = require("./modules/lists/lists.routes"); 
 const flightsRoutes = require("./modules/flights/flights.routes");
+const hotelsRoutes = require('./modules/hotels/hotels.routes');
+
 
 
 const app = express();
@@ -30,6 +32,8 @@ app.use('/api/hr', hrRoutes);
 app.use('/api/general', generalRoutes);
 app.use('/api/lists', listsRoutes);
 app.use("/api/flights", flightsRoutes);
+app.use('/api/hotels', hotelsRoutes);
+
 
 
 app.get('/', (req, res) => {
