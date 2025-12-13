@@ -8,6 +8,21 @@ const axiosApi = axios.create({
   baseURL: API_URL,
 });
 
+// Helper: clear local storage when token is invalid/expired
+const handleInvalidToken = () => {
+  try {
+    // If you only want to clear auth data, you can do:
+    // localStorage.removeItem("authUser");
+    // localStorage.removeItem("token");
+    // localStorage.removeItem("accessToken");
+
+    // As you requested: clear all localStorage to force re-login
+    localStorage.clear();
+  } catch (e) {
+    console.error("Error clearing localStorage on invalid token:", e);
+  }
+};
+
 // Attach token from localStorage.authUser on every request
 axiosApi.interceptors.request.use(
   (config) => {
@@ -39,10 +54,35 @@ axiosApi.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Keep simple response interceptor
+// Response interceptor: watch for TOKEN_INVALID_OR_EXPIRED
 axiosApi.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(error)
+  (response) => {
+    const data = response && response.data ? response.data : null;
+
+    if (
+      data &&
+      data.success === false &&
+      data.code === "TOKEN_INVALID_OR_EXPIRED"
+    ) {
+      handleInvalidToken();
+      // we still return the response so existing code can read data.success if needed
+    }
+
+    return response;
+  },
+  (error) => {
+    const data = error?.response?.data;
+
+    if (
+      data &&
+      data.success === false &&
+      data.code === "TOKEN_INVALID_OR_EXPIRED"
+    ) {
+      handleInvalidToken();
+    }
+
+    return Promise.reject(error);
+  }
 );
 
 // Helpers

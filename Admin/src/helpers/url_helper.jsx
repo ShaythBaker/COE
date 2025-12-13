@@ -61,7 +61,14 @@ export const DELETE_HR_RULE = "/api/hr/roles";
 // ====================
 
 export const GET_SYSTEM_LISTS = "/api/lists"; // will use ?ACTIVE_STATUS=1
-export const GET_SYSTEM_LIST_ITEMS = "/api/lists"; // base for /:LIST_ID/items
+export const GET_SYSTEM_LIST_ITEMS_BY_ID = "/api/lists"; // base for /:LIST_ID/items
+export const GET_SYSTEM_LIST_ITEMS = "/api/lists/by-key"; // base for /:LIST_KEY
+
+
+// ==================== // HOTELS (CONTRACTING) // ====================
+
+export const GET_HOTELS = "/api/hotels";
+export const HOTELS = "/api/hotels"; //CREATE
 
 // ====================
 // PRODUCTS

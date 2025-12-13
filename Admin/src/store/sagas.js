@@ -25,6 +25,7 @@ import PermissionsSaga from "./permissions/saga";
 import hrEmployeesSaga from "./hrEmployees/saga";
 import HrRulesSaga from "./HrRules/saga";
 import SystemListsSaga from "./SystemLists/saga";
+import hotelsSaga from "./hotels/saga";
 
 export default function* rootSaga() {
   yield all([
@@ -53,5 +54,6 @@ export default function* rootSaga() {
     fork(hrEmployeesSaga),
     fork(HrRulesSaga),
     fork(SystemListsSaga),
+    fork(hotelsSaga),
   ]);
 }

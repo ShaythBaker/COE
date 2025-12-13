@@ -11,7 +11,6 @@ import Chat from "../pages/Chat/Chat";
 import HrUsersCreate from "../pages/HR/HrUsersCreate";
 import HrUsersList from "../pages/HR/HrUsersList";
 
-
 import RuleManagement from "../pages/HR/RuleManagement";
 
 import HrUsersEdit from "../pages/HR/HrUsersEdit";
@@ -21,8 +20,13 @@ import HrUsersEdit from "../pages/HR/HrUsersEdit";
 import SystemLists from "../pages/SystemConfiguration/SystemLists";
 import RuleManagementModuleRoles from "../pages/HR/RuleManagementModuleRoles";
 
-
 import Requests from "../pages/HR/Request";
+
+//CONTRACTING
+
+import HotelsList from "../pages/Contracting/HotelsList";
+import HotelCreate from "../pages/Contracting/HotelCreate";
+import HotelProfile from "../pages/Contracting/HotelProfile";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -238,6 +242,21 @@ const authProtectedRoutes = [
   {
     path: "/system-configuration/rule-management/:moduleId",
     component: <RuleManagementModuleRoles />,
+  },
+
+  //CONTRACTING
+
+  {
+    path: "/contracting/hotels",
+    component: <HotelsList />,
+  },
+  {
+    path: "/contracting/hotels/create",
+    component: <HotelCreate />,
+  },
+  {
+    path: "/contracting/hotels/:hotelId",
+    component: <HotelProfile />,
   },
 
   //   //Crypto

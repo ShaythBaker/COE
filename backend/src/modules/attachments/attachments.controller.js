@@ -12,6 +12,7 @@ function getCompanyId(req) {
   return null;
 }
 
+
 /**
  * GET /api/attachments
  * Optional query:
@@ -187,7 +188,6 @@ async function getAttachmentPresignedUrl(req, res) {
  * Content-Type: multipart/form-data
  * Fields:
  *   file           -> the uploaded file (required)
- *   USER_ID        -> user ID (required - owner/subject of file)
  *   FILE_CATEGORY  -> optional category, e.g. "CV" (from frontend)
  *   FILE_NAME      -> optional custom display name; defaults to original filename
  *
@@ -211,7 +211,7 @@ async function createAttachment(req, res) {
 
     const file = req.file;
     const {
-      USER_ID,
+      // USER_ID is no longer taken from body
       FILE_CATEGORY,
       FILE_DESCRIPTION,
       FILE_NAME, // optional custom label
@@ -221,14 +221,13 @@ async function createAttachment(req, res) {
       return res.status(400).json({ message: "file is required" });
     }
 
-    if (!USER_ID) {
-      return res.status(400).json({ message: "USER_ID is required" });
-    }
-
     const userFromToken = req.user;
     if (!userFromToken || !userFromToken.USER_ID) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+
+    // OWNER USER_ID is taken from JWT, not from frontend
+    const USER_ID = userFromToken.USER_ID;
 
     const now = new Date();
 
@@ -251,7 +250,7 @@ async function createAttachment(req, res) {
         FILE_NAME: dbFileName,
         FILE_URL: key, // store the S3 key
         FILE_TYPE: mimetype,
-        USER_ID,
+        USER_ID, // 👈 from JWT
         FILE_CATEGORY: FILE_CATEGORY || null,
         FILE_DESCRIPTION: FILE_DESCRIPTION || null,
         CREATED_BY: userFromToken.USER_ID,
@@ -278,6 +277,7 @@ async function createAttachment(req, res) {
   }
 }
 
+
 /**
  * PUT /api/attachments/:FILE_ID
  *
@@ -290,12 +290,10 @@ async function createAttachment(req, res) {
  * {
  *   file: (optional new file),
  *   "FILE_NAME": "...",
- *   "USER_ID": "...",
- *   "FILE_CATEGORY": "..."
+ *   "FILE_CATEGORY": "...",
+ *   "FILE_DESCRIPTION": "..."
+ *   // USER_ID from frontend is ignored; DB/JWT is used instead
  * }
- *
- * If a new file is present, it is uploaded to S3 => new FILE_URL (KEY) and FILE_TYPE.
- * Otherwise, we keep the old FILE_URL/FILE_TYPE.
  */
 async function updateAttachment(req, res) {
   try {
@@ -349,7 +347,7 @@ async function updateAttachment(req, res) {
 
     // Step 2: insert the new record
     const file = req.file;
-    const { FILE_NAME, USER_ID, FILE_CATEGORY, FILE_DESCRIPTION } = req.body;
+    const { FILE_NAME, FILE_CATEGORY, FILE_DESCRIPTION } = req.body; // USER_ID removed
 
     let newFileName = oldRow.FILE_NAME;
     let newFileKey = oldRow.FILE_URL; // keep old key by default
@@ -379,7 +377,8 @@ async function updateAttachment(req, res) {
       FILE_NAME: newFileName,
       FILE_URL: newFileKey, // S3 key
       FILE_TYPE: newFileType,
-      USER_ID: USER_ID !== undefined ? USER_ID : oldRow.USER_ID,
+      // OWNER USER_ID is taken from the existing record (DB), not from frontend
+      USER_ID: oldRow.USER_ID,
       FILE_CATEGORY:
         FILE_CATEGORY !== undefined ? FILE_CATEGORY : oldRow.FILE_CATEGORY,
       FILE_CATEGORY:
@@ -413,6 +412,7 @@ async function updateAttachment(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+
 
 /**
  * DELETE /api/attachments/:FILE_ID
