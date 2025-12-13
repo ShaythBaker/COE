@@ -217,7 +217,7 @@ const SidebarContent = (props) => {
             </li>
 
 
-=======
+
             {canSeeHr && (
               <li>
                 <Link to="/#" className="has-arrow">
