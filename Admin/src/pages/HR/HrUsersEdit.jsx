@@ -14,6 +14,7 @@ import {
   Button,
   Alert,
   Spinner,
+  Progress,
 } from "reactstrap";
 
 import { useDispatch, useSelector } from "react-redux";
@@ -170,6 +171,8 @@ const HrUsersEditInner = () => {
             />
           </Col>
         </Row>
+
+        <EmployeeCompensationSection updating={updating} />
       </Container>
     </div>
   );
@@ -278,6 +281,357 @@ const EmployeeMetaCard = ({ user }) => {
         </CardBody>
       </Card>
     </>
+  );
+};
+
+const EmployeeCompensationSection = ({ updating }) => {
+  const navigate = useNavigate();
+  const [dependencies, setDependencies] = useState([
+    { name: "", relationship: "", dob: "" },
+  ]);
+
+  const updateDependency = (index, key, value) => {
+    setDependencies((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, [key]: value } : d))
+    );
+  };
+
+  const addDependency = () => {
+    setDependencies((prev) => [...prev, { name: "", relationship: "", dob: "" }]);
+  };
+
+  const removeDependency = (index) => {
+    setDependencies((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // --- Leave Balances Dashboard placeholders ---
+  const leave = {
+    annual: { used: 12, total: 24 },
+    sick: { used: 3, total: 14 },
+    unpaid: { used: 0, total: 10 },
+  };
+
+  const pct = (used, total) => {
+    const t = Number(total) || 0;
+    if (!t) return 0;
+    return Math.max(0, Math.min(100, Math.round((Number(used) / t) * 100)));
+  };
+
+  const Gauge = ({ label, used, total, hint }) => {
+    const percent = pct(used, total);
+    return (
+      <div className="border rounded p-3 h-100">
+        <div className="d-flex align-items-center justify-content-between">
+          <h5 className="font-size-14 mb-0">{label}</h5>
+          <span className="text-muted">{percent}%</span>
+        </div>
+
+        <div className="d-flex align-items-center mt-3">
+          <div
+            aria-label={`${label} gauge`}
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              background: `conic-gradient(#556ee6 ${percent}%, #e9ecef 0)`,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "#fff",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <span className="fw-semibold" style={{ fontSize: 12 }}>
+                {used}/{total}
+              </span>
+            </div>
+          </div>
+
+          <div className="ms-3 flex-grow-1">
+            <div className="d-flex justify-content-between">
+              <span className="text-muted">Used</span>
+              <span className="fw-semibold">{used}</span>
+            </div>
+            <div className="d-flex justify-content-between">
+              <span className="text-muted">Remaining</span>
+              <span className="fw-semibold">{Math.max(0, total - used)}</span>
+            </div>
+            <div className="mt-2">
+              <div className="progress" style={{ height: 6 }}>
+                <div
+                  className="progress-bar"
+                  role="progressbar"
+                  style={{ width: `${percent}%` }}
+                  aria-valuenow={percent}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                />
+              </div>
+            </div>
+            {hint ? (
+              <small className="text-muted d-block mt-2">{hint}</small>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <Row className="mt-4">
+      <Col lg="12">
+        <Card>
+          <CardBody>
+            <h4 className="card-title mb-4">Compensation &amp; Balances</h4>
+
+            <Row>
+              {/* LEFT COLUMN – payroll & static HR fields */}
+              <Col lg={6}>
+                <div className="mb-3">
+                  <Label className="form-label">Gross Salary</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter gross salary (e.g., JD 1200)" />
+                  <small className="text-muted">
+                    Placeholder – bind to employee gross salary.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <Label className="form-label">Net Salary</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter net salary (e.g., JD 950)" />
+                  <small className="text-muted">
+                    Placeholder – bind to employee net salary.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <Label className="form-label">Health Insurance Type</Label>
+                  <Input type="select" defaultValue="">
+                    <option value="" disabled>
+                      Select insurance type...
+                    </option>
+                    <option value="STANDARD">Standard (Placeholder)</option>
+                    <option value="PREMIUM">Premium (Placeholder)</option>
+                  </Input>
+                  <small className="text-muted">
+                    Placeholder – backend will bind the selected insurance type.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <Label className="form-label">Health Insurance Number</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter insurance number" />
+                  <small className="text-muted">
+                    Placeholder – insurance policy / card number.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <Label className="form-label">Social Security Amount</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter social security amount" />
+                  <small className="text-muted">
+                    Placeholder – monthly social security contribution.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <Label className="form-label">Tax Number</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter tax number" />
+                  <small className="text-muted">
+                    Placeholder – employee tax / TIN number.
+                  </small>
+                </div>
+
+                <div className="mb-0">
+                  <Label className="form-label">Bank Account Number</Label>
+                  <Input type="text" defaultValue="" placeholder="Enter IBAN / bank account" />
+                  <small className="text-muted">
+                    Placeholder – IBAN or bank account.
+                  </small>
+                </div>
+
+                <div className="mt-4">
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <h5 className="font-size-15 mb-0">Dependencies</h5>
+                    <Button type="button" color="light" size="sm" onClick={addDependency}>
+                      + Add Dependent
+                    </Button>
+                  </div>
+
+                  <div className="table-responsive border rounded">
+                    <table className="table mb-0 align-middle">
+                      <thead className="table-light">
+                        <tr>
+                          <th style={{ width: "40%" }}>Name</th>
+                          <th style={{ width: "35%" }}>Relationship</th>
+                          <th style={{ width: "20%" }}>DOB</th>
+                          <th style={{ width: "5%" }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dependencies.map((dep, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <Input
+                                bsSize="sm"
+                                type="text"
+                                value={dep.name}
+                                placeholder="Full name"
+                                onChange={(e) => updateDependency(idx, "name", e.target.value)}
+                              />
+                            </td>
+                            <td>
+                              <Input
+                                bsSize="sm"
+                                type="select"
+                                value={dep.relationship}
+                                onChange={(e) =>
+                                  updateDependency(idx, "relationship", e.target.value)
+                                }
+                              >
+                                <option value="">Select...</option>
+                                <option value="SPOUSE">Spouse (Placeholder)</option>
+                                <option value="CHILD">Child (Placeholder)</option>
+                              </Input>
+                            </td>
+                            <td>
+                              <Input
+                                bsSize="sm"
+                                type="date"
+                                value={dep.dob}
+                                onChange={(e) => updateDependency(idx, "dob", e.target.value)}
+                              />
+                            </td>
+                            <td className="text-end">
+                              <Button
+                                type="button"
+                                color="danger"
+                                outline
+                                size="sm"
+                                onClick={() => removeDependency(idx)}
+                                disabled={dependencies.length === 1}
+                              >
+                                ×
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <small className="text-muted d-block mt-1">
+                    Placeholder – backend will map and persist employee dependents here.
+                  </small>
+                </div>
+              </Col>
+
+              {/* RIGHT COLUMN – leave balances & financial snapshot */}
+              <Col lg={6}>
+                <div className="mb-3">
+                  <Label className="form-label">Recruitment Date</Label>
+                  <Input type="date" defaultValue="" />
+                  <small className="text-muted">
+                    Placeholder – date of joining / recruitment date.
+                  </small>
+                </div>
+
+                <div className="d-flex align-items-center justify-content-between mt-2 mb-3">
+                  <h5 className="font-size-15 mb-0">Leave Balances</h5>
+                  <small className="text-muted">Dashboard (placeholders)</small>
+                </div>
+
+                <Row className="g-3">
+                  <Col md={12}>
+                    <Gauge
+                      label="Annual Leave"
+                      used={leave.annual.used}
+                      total={leave.annual.total}
+                      hint="Placeholder – ANNUAL_LEAVE_USED / ANNUAL_LEAVE_TOTAL."
+                    />
+                  </Col>
+
+                  <Col md={12}>
+                    <Gauge
+                      label="Sick Leave"
+                      used={leave.sick.used}
+                      total={leave.sick.total}
+                      hint="Placeholder – SICK_LEAVE_USED / SICK_LEAVE_TOTAL."
+                    />
+                  </Col>
+
+                  <Col md={12}>
+                    <Gauge
+                      label="Unpaid Leave"
+                      used={leave.unpaid.used}
+                      total={leave.unpaid.total}
+                      hint="Placeholder – unpaid leave taken this year (define total via policy)."
+                    />
+                  </Col>
+                </Row>
+
+
+                <div className="mt-4">
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <h5 className="font-size-15 mb-0">Financial Snapshot</h5>
+                  </div>
+
+                <Row>
+                  <Col md={6} className="mb-3">
+                    <div className="border rounded p-2 text-center">
+                      <p className="text-muted mb-1">Monthly Cost</p>
+                      <h5 className="mb-0">JD 0.00</h5>
+                    </div>
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <div className="border rounded p-2 text-center">
+                      <p className="text-muted mb-1">Year-to-Date Paid</p>
+                      <h5 className="mb-0">JD 0.00</h5>
+                    </div>
+                  </Col>
+                </Row>
+
+                <small className="text-muted d-block">
+                  All values above are placeholders to be replaced with real payroll &amp; leave data from the backend.
+                </small>
+                </div>
+              </Col>
+            </Row>
+            <Row className="mt-4 align-items-center">
+              <Col sm="6">
+                <Button
+                  type="button"
+                  color="secondary"
+                  onClick={() => navigate("/hr/users")}
+                >
+                  Back to Employees
+                </Button>
+              </Col>
+
+              <Col sm="6" className="text-end">
+                <Button
+                  color="primary"
+                  disabled={updating}
+                  onClick={() => {
+                    const form = document.querySelector("form");
+                    if (form) form.requestSubmit();
+                  }}
+                >
+                  {updating && <Spinner size="sm" className="me-2" />}
+                  Update Employee
+                </Button>
+              </Col>
+            </Row>
+          </CardBody>
+        </Card>
+      </Col>
+    </Row>
   );
 };
 
@@ -695,20 +1049,6 @@ const HrUsersEditForm = ({
             </Col>
           </Row>
 
-          <div className="d-flex justify-content-between">
-            <Button
-              type="button"
-              color="secondary"
-              onClick={() => navigate("/hr/users")}
-            >
-              Back to Employees
-            </Button>
-
-            <Button type="submit" color="primary" disabled={updating}>
-              {updating && <Spinner size="sm" className="me-2" />}
-              Update Employee
-            </Button>
-          </div>
         </Form>
       </CardBody>
     </Card>

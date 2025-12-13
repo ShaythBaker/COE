@@ -218,6 +218,8 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
+
+
             {canSeeHr && (
               <li>
                 <Link to="/#" className="has-arrow">
@@ -237,6 +239,7 @@ const SidebarContent = (props) => {
                 </ul>
               </li>
             )}
+
 
             {/* System Configuration (conditional) */}
             {canSeeAdmin && (
