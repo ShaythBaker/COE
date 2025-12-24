@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Row,
   Col,
@@ -24,13 +24,18 @@ import Breadcrumbs from "../../components/Common/Breadcrumb";
 import RequireModule from "../../components/Auth/RequireModule";
 import {
   getSystemLists,
-  getSystemListItems,
   createSystemListItem,
   updateSystemListItem,
+  getSystemListItemsById,
 } from "../../store/SystemLists/actions";
+
+// Toast
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const SystemListsInner = () => {
   document.title = "System Configuration | Lists";
+
   // Breadcrumb
   const [breadcrumbItems] = useState([
     { title: "System Configuration", link: "#" },
@@ -50,6 +55,10 @@ const SystemListsInner = () => {
     isActive: true,
   });
 
+  // Track submit cycles + saving transitions to show toast + refresh items
+  const prevSavingRef = useRef(false);
+  const [submitAttempt, setSubmitAttempt] = useState(false);
+
   // Load lists on mount
   useEffect(() => {
     dispatch(getSystemLists());
@@ -61,12 +70,57 @@ const SystemListsInner = () => {
       const firstId = lists[0].LIST_ID;
       setSelectedListId(firstId);
       // This page wants ALL items (active + inactive)
-      dispatch(getSystemListItems(firstId, { includeInactive: true }));
+      dispatch(getSystemListItemsById(firstId, { includeInactive: true }));
     }
   }, [lists, selectedListId, dispatch]);
 
+  // After create/update finishes: toast + refresh items + close modal on success
+  useEffect(() => {
+    const wasSaving = prevSavingRef.current;
+    const isSaving = savingItem;
+
+    // Detect transition: saving true -> false after a submit
+    if (submitAttempt && wasSaving && !isSaving) {
+      const hasError = !!error;
+
+      if (!hasError) {
+        toast.success(
+          editingItem ? "Item updated successfully" : "Item added successfully"
+        );
+
+        // Refresh items so changes are reflected immediately
+        if (selectedListId) {
+          dispatch(
+            getSystemListItemsById(selectedListId, { includeInactive: true })
+          );
+        }
+
+        // Close + reset only on success
+        setModalOpen(false);
+        resetForm();
+      } else {
+        const msg =
+          typeof error === "string"
+            ? error
+            : "Failed to save item. Please try again.";
+        toast.error(msg);
+      }
+
+      setSubmitAttempt(false);
+    }
+
+    prevSavingRef.current = isSaving;
+  }, [
+    savingItem,
+    submitAttempt,
+    error,
+    editingItem,
+    selectedListId,
+    dispatch,
+  ]);
+
   const toggleModal = () => {
-    setModalOpen(!modalOpen);
+    setModalOpen((v) => !v);
   };
 
   const resetForm = () => {
@@ -95,10 +149,10 @@ const SystemListsInner = () => {
     const listId = Number(e.target.value);
     setSelectedListId(listId);
     if (listId) {
-      // This page wants ALL items (active + inactive)
-      dispatch(getSystemListItems(listId, { includeInactive: true }));
+      dispatch(getSystemListItemsById(listId, { includeInactive: true }));
     }
   };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormValues((prev) => ({
@@ -118,19 +172,18 @@ const SystemListsInner = () => {
       ACTIVE_STATUS: formValues.isActive ? 1 : 0,
     };
 
+    // Mark that a submit happened, so the "savingItem true->false" effect can react
+    setSubmitAttempt(true);
+
     if (editingItem) {
-      // Update existing item
       dispatch(
         updateSystemListItem(selectedListId, editingItem.LIST_ITEM_ID, payload)
       );
     } else {
-      // Create new item
       dispatch(createSystemListItem(selectedListId, payload));
     }
 
-    // Close immediately; if you prefer "close on success only" we can do it via a success flag
-    setModalOpen(false);
-    resetForm();
+    // Do NOT close modal here. Close on success in the effect.
   };
 
   const selectedList = lists?.find((l) => l.LIST_ID === selectedListId);
@@ -139,6 +192,9 @@ const SystemListsInner = () => {
     <React.Fragment>
       <div className="page-content">
         <div className="container-fluid">
+          {/* Toasts */}
+          <ToastContainer position="top-right" autoClose={2500} />
+
           {/* Breadcrumb */}
           <Breadcrumbs
             title="System Configuration"
@@ -184,6 +240,7 @@ const SystemListsInner = () => {
                     Add Item
                   </Button>
                 </CardHeader>
+
                 <CardBody>
                   {error && typeof error === "string" && (
                     <Alert color="danger" className="mb-3">
@@ -237,11 +294,9 @@ const SystemListsInner = () => {
                               <td className="text-center">
                                 <i
                                   className="bx bx-edit text-primary"
-                                  style={{
-                                    cursor: "pointer",
-                                    fontSize: "18px",
-                                  }}
+                                  style={{ cursor: "pointer", fontSize: "18px" }}
                                   onClick={() => handleEditClick(item)}
+                                  title="Edit"
                                 />
                                 {/* Delete is not wired because no DELETE API was provided */}
                               </td>
@@ -270,6 +325,7 @@ const SystemListsInner = () => {
               <ModalHeader toggle={toggleModal}>
                 {editingItem ? "Edit List Item" : "Add List Item"}
               </ModalHeader>
+
               <ModalBody>
                 <FormGroup>
                   <Label for="itemName">Item Name</Label>
@@ -281,6 +337,7 @@ const SystemListsInner = () => {
                     onChange={handleChange}
                     placeholder="e.g. Jordan, United Arab Emirates"
                     required
+                    disabled={savingItem}
                   />
                 </FormGroup>
 
@@ -291,14 +348,21 @@ const SystemListsInner = () => {
                     type="checkbox"
                     checked={formValues.isActive}
                     onChange={handleChange}
+                    disabled={savingItem}
                   />
                   <Label for="isActive" check>
                     Active
                   </Label>
                 </FormGroup>
               </ModalBody>
+
               <ModalFooter>
-                <Button type="button" color="secondary" onClick={toggleModal}>
+                <Button
+                  type="button"
+                  color="secondary"
+                  onClick={toggleModal}
+                  disabled={savingItem}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" color="primary" disabled={savingItem}>

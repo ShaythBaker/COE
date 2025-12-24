@@ -16,8 +16,7 @@ const isUserAuthenticated = () => {
 };
 
 // Get list items by LIST_KEY (e.g. USER_DOCUMENTS)
-export const getListByKey = (key) =>
-  get(`${url.GET_LIST_BY_KEY}/${key}`);
+export const getListByKey = (key) => get(`${url.GET_LIST_BY_KEY}/${key}`);
 
 // Attachments upload (multipart/form-data)
 export const uploadAttachmentApi = (formData) =>
@@ -26,7 +25,6 @@ export const uploadAttachmentApi = (formData) =>
 // Attachments GET: /api/attachments/{FILE_ID}/url mockup url
 export const getAttachmentUrlApi = (fileId) =>
   get(`${url.GET_ATTACHMENT_URL}/${fileId}/url`);
-
 
 /**
  * Get attachments for a user and category
@@ -106,8 +104,6 @@ export const updateRolePermissionsApi = (roleId, permissionsArray) => {
     PERMISSIONS: permissionsArray,
   });
 };
-
-
 
 // postForgetPwd
 const postFakeForgetPwd = (data) => post(url.POST_FAKE_PASSWORD_FORGET, data);
@@ -226,11 +222,8 @@ export const createHrEmployeeApi = (data) => {
 
 // UPDATE EMPLOYEE
 export const updateHrEmployeeApi = (id, data) => {
-  return put(`${url.GET_HR_EMPLOYEE}/${id}`, data,{
-   
-});
+  return put(`${url.GET_HR_EMPLOYEE}/${id}`, data, {});
 };
-
 
 // ========================
 // HOTELS (CONTRACTING)
@@ -249,11 +242,19 @@ export const getHotelsApi = (params = {}) => {
     query.ACTIVE_STATUS = params.ACTIVE_STATUS;
   }
 
-  if (params.HOTEL_AREA !== undefined && params.HOTEL_AREA !== null && params.HOTEL_AREA !== "") {
+  if (
+    params.HOTEL_AREA !== undefined &&
+    params.HOTEL_AREA !== null &&
+    params.HOTEL_AREA !== ""
+  ) {
     query.HOTEL_AREA = params.HOTEL_AREA;
   }
 
-  if (params.HOTEL_STARS !== undefined && params.HOTEL_STARS !== null && params.HOTEL_STARS !== "") {
+  if (
+    params.HOTEL_STARS !== undefined &&
+    params.HOTEL_STARS !== null &&
+    params.HOTEL_STARS !== ""
+  ) {
     query.HOTEL_STARS = params.HOTEL_STARS;
   }
 
@@ -263,10 +264,23 @@ export const getHotelsApi = (params = {}) => {
 // ✅ Hotels create API: POST /api/hotels
 export const createHotel = (data) => post(url.HOTELS, data);
 
-export const getHotelById = (hotelId) =>
-  get(`${url.HOTELS}/${hotelId}`);
+export const getHotelById = (hotelId) => get(`${url.HOTELS}/${hotelId}`);
 
+// HOTEL CONTRACTS
+export const getHotelContracts = (hotelId) =>
+  get(`${url.HOTEL_CONTRACTS_BASE}/${hotelId}/contracts`);
 
+export const getHotelContractById = (hotelId, contractId) =>
+  get(`${url.HOTEL_CONTRACTS_BASE}/${hotelId}/contracts/${contractId}`);
+
+export const createHotelContract = (hotelId, data) =>
+  post(`${url.HOTEL_CONTRACTS_BASE}/${hotelId}/contracts`, data);
+
+export const updateHotelContract = (hotelId, contractId, data) =>
+  put(`${url.HOTEL_CONTRACTS_BASE}/${hotelId}/contracts/${contractId}`, data);
+
+export const deleteHotelContract = (hotelId, contractId) =>
+  del(`${url.HOTEL_CONTRACTS_BASE}/${hotelId}/contracts/${contractId}`);
 
 // Register Method
 const postJwtRegister = (urlParam, data) => {
@@ -483,6 +497,11 @@ export const getMailsListsId = (id) =>
 
 // ===== System Lists (dynamic lists) =====
 
+
+// GET /api/lists/:LIST_ID/items
+export const getSystemListItemsById = (listId, params) =>
+  get(`${url.GET_SYSTEM_LIST_ITEMS_BY_ID}/${listId}/items`, { params });
+
 // GET /api/lists?ACTIVE_STATUS=1
 const getSystemLists = (params) => get(url.GET_SYSTEM_LISTS, { params });
 
@@ -493,11 +512,48 @@ export const getSystemListItems = (listKey, params) =>
 
 // POST /api/lists/:LIST_ID/items
 const createSystemListItem = (listId, data) =>
-  post(`${url.GET_SYSTEM_LIST_ITEMS}/${listId}/items`, data);
+  post(`${url.GET_SYSTEM_LIST_ITEMS_BY_ID}/${listId}/items`, data);
 
 // PUT /api/lists/:LIST_ID/items/:ITEM_ID
 const updateSystemListItem = (listId, itemId, data) =>
-  put(`${url.GET_SYSTEM_LIST_ITEMS}/${listId}/items/${itemId}`, data);
+  put(`${url.GET_SYSTEM_LIST_ITEMS_BY_ID}/${listId}/items/${itemId}`, data);
+
+// Rates APIs
+export const getHotelContractRatesApi = (hotelId, contractId) =>
+  get(`/api/hotels/${hotelId}/contracts/${contractId}/rates`);
+
+export const getHotelContractRateByIdApi = (hotelId, contractId, rateId) =>
+  get(`/api/hotels/${hotelId}/contracts/${contractId}/rates/${rateId}`);
+
+export const createHotelContractRateApi = (hotelId, contractId, data) =>
+  post(`/api/hotels/${hotelId}/contracts/${contractId}/rates`, data);
+
+export const updateHotelContractRateApi = (hotelId, contractId, rateId, data) =>
+  put(`/api/hotels/${hotelId}/contracts/${contractId}/rates/${rateId}`, data);
+
+export const deleteHotelContractRateApi = (hotelId, contractId, rateId) =>
+  del(`/api/hotels/${hotelId}/contracts/${contractId}/rates/${rateId}`);
+// ====================
+// Hotel Seasons APIs
+// ====================
+export const getHotelSeasons = (hotelId) =>
+  get(`${url.HOTEL_SEASONS_BASE}/${hotelId}/seasons`);
+
+export const getHotelSeasonById = (hotelId, seasonId) =>
+  get(`${url.HOTEL_SEASONS_BASE}/${hotelId}/seasons/${seasonId}`);
+
+export const createHotelSeason = (hotelId, data) =>
+  post(`${url.HOTEL_SEASONS_BASE}/${hotelId}/seasons`, data);
+
+export const updateHotelSeason = (hotelId, seasonId, data) =>
+  put(`${url.HOTEL_SEASONS_BASE}/${hotelId}/seasons/${seasonId}`, data);
+
+export const deleteHotelSeason = (hotelId, seasonId) =>
+  del(`${url.HOTEL_SEASONS_BASE}/${hotelId}/seasons/${seasonId}`);
+
+export const getHotelSeasonsWithRates = (hotelId) =>
+  get(`${url.HOTEL_SEASONS_WITH_RATES_BASE}/${hotelId}/seasons-with-rates`);
+
 
 // get folderlist
 export const selectFolders = () => get(url.SELECT_FOLDER);

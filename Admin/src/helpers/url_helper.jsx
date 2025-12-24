@@ -70,6 +70,15 @@ export const GET_SYSTEM_LIST_ITEMS = "/api/lists/by-key"; // base for /:LIST_KEY
 export const GET_HOTELS = "/api/hotels";
 export const HOTELS = "/api/hotels"; //CREATE
 
+// Hotel Contracts
+export const HOTEL_CONTRACTS_BASE = "/api/hotels"; // use with /:HOTEL_ID/contracts
+
+// Hotel Seasons
+export const HOTEL_SEASONS_BASE = "/api/hotels"; // use with /:HOTEL_ID/seasons
+export const HOTEL_SEASONS_WITH_RATES_BASE = "/api/hotels"; // use with /:HOTEL_ID/seasons-with-rates
+
+
+
 // ====================
 // PRODUCTS
 // ====================

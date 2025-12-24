@@ -6,6 +6,11 @@ import { Routes, Route } from "react-router-dom";
 import { connect, useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 
+//import toast message
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+
 // Import Routes all
 import { authProtectedRoutes, publicRoutes } from "./routes/index";
 
@@ -71,19 +76,26 @@ const App = (props) => {
           />
         ))}
 
-{authProtectedRoutes.map((route, idx) => (
-  <Route
-    path={route.path}
-    element={
-      <Authmiddleware>
-        <Layout>{route.component}</Layout>
-      </Authmiddleware>
-    }
-    key={idx}
-    exact={true}
-  />
-))}
+        {authProtectedRoutes.map((route, idx) => (
+          <Route
+            path={route.path}
+            element={
+              <Authmiddleware>
+                <Layout>{route.component}</Layout>
+              </Authmiddleware>
+            }
+            key={idx}
+            exact={true}
+          />
+        ))}
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+      />
     </React.Fragment>
   );
 };

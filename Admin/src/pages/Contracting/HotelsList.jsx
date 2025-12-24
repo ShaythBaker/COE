@@ -1,6 +1,14 @@
 // src/pages/Contracting/HotelsList.jsx
 import React, { useEffect, useMemo } from "react";
-import { Container, Card, CardBody, Alert, Spinner, Badge,Button} from "reactstrap";
+import {
+  Container,
+  Card,
+  CardBody,
+  Alert,
+  Spinner,
+  Badge,
+  Button,
+} from "reactstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import { useNavigate } from "react-router-dom";
@@ -41,9 +49,8 @@ const HotelsListInner = () => {
   };
 
   const handleViewProfile = (hotelId) => {
-  navigate(`/contracting/hotels/${hotelId}`);
-};
-
+    navigate(`/contracting/hotels/${hotelId}`);
+  };
 
   const renderStatusBadge = (status) => {
     const isActive = status === 1 || status === "1";
@@ -63,57 +70,56 @@ const HotelsListInner = () => {
     );
   }, [dispatch]);
 
-const columns = useMemo(
-  () => [
-    {
-      header: "Hotel Name",
-      accessorKey: "HOTEL_NAME",
-      enableColumnFilter: false,
-    },
-    {
-      header: "Area",
-      accessorKey: "HOTEL_AREA",
-      enableColumnFilter: false,
-    },
-    {
-      header: "Chain",
-      accessorKey: "HOTEL_CHAIN",
-      enableColumnFilter: false,
-    },
-    {
-      header: "Stars",
-      accessorKey: "HOTEL_STARS",
-      enableColumnFilter: false,
-      cell: (info) => renderStars(info.getValue()),
-    },
-    {
-      header: "Status",
-      accessorKey: "ACTIVE_STATUS",
-      enableColumnFilter: false,
-      cell: (info) => renderStatusBadge(info.getValue()),
-    },
-    {
-      header: "Actions",
-      id: "actions",
-      enableColumnFilter: false,
-      cell: (info) => {
-        const hotel = info.row.original;
-        return (
-          <Button
-            color="link"
-            size="sm"
-            className="p-0"
-            onClick={() => handleViewProfile(hotel.HOTEL_ID)}
-          >
-            View Profile
-          </Button>
-        );
+  const columns = useMemo(
+    () => [
+      {
+        header: "Hotel Name",
+        accessorKey: "HOTEL_NAME",
+        enableColumnFilter: false,
       },
-    },
-  ],
-  []
-);
-
+      {
+        header: "Area",
+        accessorKey: "HOTEL_LOCATION",
+        enableColumnFilter: false,
+      },
+      {
+        header: "Chain",
+        accessorKey: "HOTEL_CHAIN",
+        enableColumnFilter: false,
+      },
+      {
+        header: "Stars",
+        accessorKey: "HOTEL_STARS",
+        enableColumnFilter: false,
+        cell: (info) => renderStars(info.getValue()),
+      },
+      {
+        header: "Status",
+        accessorKey: "ACTIVE_STATUS",
+        enableColumnFilter: false,
+        cell: (info) => renderStatusBadge(info.getValue()),
+      },
+      {
+        header: "Actions",
+        id: "actions",
+        enableColumnFilter: false,
+        cell: (info) => {
+          const hotel = info.row.original;
+          return (
+            <Button
+              color="link"
+              size="sm"
+              className="p-0"
+              onClick={() => handleViewProfile(hotel.HOTEL_ID)}
+            >
+              View Profile
+            </Button>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   // ✅ This is what the Add button will call
   const handleAddClick = () => {

@@ -1,5 +1,4 @@
 // src/store/SystemLists/actions.js
-
 import {
   GET_SYSTEM_LISTS,
   GET_SYSTEM_LISTS_SUCCESS,
@@ -13,7 +12,13 @@ import {
   UPDATE_SYSTEM_LIST_ITEM,
   UPDATE_SYSTEM_LIST_ITEM_SUCCESS,
   UPDATE_SYSTEM_LIST_ITEM_FAIL,
+  GET_SYSTEM_LIST_ITEMS_BY_ID,
 } from "./actionTypes";
+
+export const getSystemListItemsById = (listId, options = {}) => ({
+  type: GET_SYSTEM_LIST_ITEMS_BY_ID,
+  payload: { listId, options },
+});
 
 // Lists
 export const getSystemLists = () => ({

@@ -6,6 +6,7 @@ import {
   GET_SYSTEM_LIST_ITEMS,
   CREATE_SYSTEM_LIST_ITEM,
   UPDATE_SYSTEM_LIST_ITEM,
+  GET_SYSTEM_LIST_ITEMS_BY_ID,
 } from "./actionTypes";
 
 import {
@@ -24,7 +25,17 @@ import {
   getSystemListItems as getSystemListItemsApi,
   createSystemListItem as createSystemListItemApi,
   updateSystemListItem as updateSystemListItemApi,
+  getSystemListItemsById as getSystemListItemsByIdApi,
 } from "../../helpers/fakebackend_helper";
+
+function* onGetSystemListItemsById({ payload: { listId, params } }) {
+  try {
+    const response = yield call(getSystemListItemsByIdApi, listId, params);
+    yield put(getSystemListItemsSuccess(response)); // same success you already use
+  } catch (error) {
+    yield put(getSystemListItemsFail(error));
+  }
+}
 
 function* fetchSystemLists() {
   try {
@@ -70,4 +81,5 @@ export default function* SystemListsSaga() {
   yield takeEvery(GET_SYSTEM_LIST_ITEMS, fetchSystemListItems);
   yield takeEvery(CREATE_SYSTEM_LIST_ITEM, onCreateSystemListItem);
   yield takeEvery(UPDATE_SYSTEM_LIST_ITEM, onUpdateSystemListItem);
+  yield takeEvery(GET_SYSTEM_LIST_ITEMS_BY_ID, onGetSystemListItemsById);
 }

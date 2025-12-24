@@ -27,6 +27,9 @@ import Requests from "../pages/HR/Request";
 import HotelsList from "../pages/Contracting/HotelsList";
 import HotelCreate from "../pages/Contracting/HotelCreate";
 import HotelProfile from "../pages/Contracting/HotelProfile";
+import HotelContractDetails from "../pages/Contracting/HotelContractDetails";
+import HotelSeasons from "../pages/Contracting/HotelSeasons";
+import HotelSeasonsWithRates from "../pages/Contracting/HotelSeasonsWithRates";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -257,6 +260,18 @@ const authProtectedRoutes = [
   {
     path: "/contracting/hotels/:hotelId",
     component: <HotelProfile />,
+  },
+  {
+    path: "/contracting/hotels/:hotelId/contracts/:contractId",
+    component: <HotelContractDetails />,
+  },
+  {
+    path: "/contracting/hotels/:hotelId/seasons",
+    component: <HotelSeasons />,
+  },
+  {
+    path: "/contracting/hotels/:hotelId/seasons-with-rates",
+    component: <HotelSeasonsWithRates />,
   },
 
   //   //Crypto
