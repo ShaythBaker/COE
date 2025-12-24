@@ -14,7 +14,7 @@ import {
   Button,
 } from "reactstrap";
 
-import { Link } from "react-router-dom"; // <-- this line is REQUIRED
+import { Link } from "react-router-dom"; // 
 
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
@@ -130,7 +130,7 @@ const HrUsersListInner = () => {
                 {loadingEmployees ? (
                   <div className="d-flex align-items-center">
                     <Spinner
-                      size="md"
+                      size="sm"
                       className="me-4 spinner-border text-success"
                     />
                     <span>Loading employees...</span>
@@ -181,14 +181,13 @@ const HrUsersListInner = () => {
                               >
                                 <i className="bx bx-pencil" />
                               </Link>
-                              <Button
-                                size="sm"
-                                color="light"
-                                className="me-1"
-                                disabled
+                              <Link
+                                to={`/hr/users/${user.USER_ID}/view`}
+                                className="btn btn-light btn-sm me-1"
+                                title="View"
                               >
                                 <i className="bx bx-show" />
-                              </Button>
+                              </Link>
                               <Button size="sm" color="light" disabled>
                                 <i className="bx bx-trash" />
                               </Button>

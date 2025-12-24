@@ -279,6 +279,22 @@ const SidebarContent = (props) => {
               </li>
             )}
 
+                        {/* Quick Actions */}
+            <li>
+              <Link to="/#" className="has-arrow">
+                <i className="bx bx-bolt-circle"></i>
+                <span>{props.t("Quick Actions")}</span>
+              </Link>
+
+              <ul className="sub-menu" aria-expanded="false">
+                <li>
+                  <Link to="/quick-actions/requests">
+                    {props.t("Requests")}
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
             <li className="menu-title">{props.t("Apps")}</li>
 
             <li>

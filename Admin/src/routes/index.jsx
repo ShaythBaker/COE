@@ -14,6 +14,7 @@ import HrUsersList from "../pages/HR/HrUsersList";
 import RuleManagement from "../pages/HR/RuleManagement";
 
 import HrUsersEdit from "../pages/HR/HrUsersEdit";
+import HrUsersView from "../pages/HR/HrUsersView";
 
 //System Configuration
 
@@ -30,6 +31,11 @@ import HotelProfile from "../pages/Contracting/HotelProfile";
 import HotelContractDetails from "../pages/Contracting/HotelContractDetails";
 import HotelSeasons from "../pages/Contracting/HotelSeasons";
 import HotelSeasonsWithRates from "../pages/Contracting/HotelSeasonsWithRates";
+
+//QUICK ACTIONS 
+
+import QuickActionsRequests from "../pages/QuickActions/Requests";
+import RequestsView from "../pages/QuickActions/RequestsView";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -231,6 +237,11 @@ const authProtectedRoutes = [
     component: <Requests />,
   },
 
+  {
+  path: "/hr/users/:id/view",
+  component: <HrUsersView />,
+  },
+
   // System Configuration
 
   {
@@ -273,6 +284,19 @@ const authProtectedRoutes = [
     path: "/contracting/hotels/:hotelId/seasons-with-rates",
     component: <HotelSeasonsWithRates />,
   },
+
+  //QUICK ACTIONS
+
+  {
+  path: "/quick-actions/requests",
+  component: <QuickActionsRequests />,
+  },
+
+  {
+  path: "/quick-actions/requests/:id/view",
+  component: <RequestsView />,
+},
+
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },
