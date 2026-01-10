@@ -33,12 +33,18 @@ import AttachmentUploader from "../../components/Common/AttachmentUploader";
 import { getHotelById } from "/src/helpers/fakebackend_helper";
 import { getAttachmentUrl } from "/src/helpers/attachments_helper";
 
-// CONTRACT Redux Actions (you will have these in src/store/hotels/actions.js)
+// Redux Actions
 import {
   getHotelContracts,
   createHotelContract,
   updateHotelContract,
   deleteHotelContract,
+
+  // Additional Services
+  getHotelAdditionalServices,
+  createHotelAdditionalService,
+  updateHotelAdditionalService,
+  deleteHotelAdditionalService,
 } from "/src/store/hotels/actions";
 
 const renderStars = (stars) => {
@@ -91,8 +97,15 @@ const HotelProfileInner = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { hotelContracts, loadingHotelContracts, hotelContractsError } =
-    useSelector((state) => state.hotels); // reducer name: hotels (as in your uploaded reducer) :contentReference[oaicite:4]{index=4}
+  const {
+    hotelContracts,
+    loadingHotelContracts,
+    hotelContractsError,
+
+    additionalServices,
+    loadingAdditionalServices,
+    additionalServicesError,
+  } = useSelector((state) => state.hotels);
 
   const [hotel, setHotel] = useState(null);
   const [loadingHotel, setLoadingHotel] = useState(false);
@@ -108,9 +121,16 @@ const HotelProfileInner = () => {
   const [contractModalOpen, setContractModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
 
-  // Delete confirm modal
+  // Delete confirm modal (contracts)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingContract, setDeletingContract] = useState(null);
+
+  // Additional services modals/state
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+
+  const [deleteServiceModalOpen, setDeleteServiceModalOpen] = useState(false);
+  const [deletingService, setDeletingService] = useState(null);
 
   const getCurrentUserId = () => {
     try {
@@ -164,10 +184,11 @@ const HotelProfileInner = () => {
     if (hotel) loadLogo();
   }, [hotel]);
 
-  // 3) Load contracts via Redux when hotel is loaded
+  // 3) Load contracts + additional services via Redux when hotel is loaded
   useEffect(() => {
     if (hotelId && hotel) {
       dispatch(getHotelContracts(hotelId));
+      dispatch(getHotelAdditionalServices(hotelId));
     }
   }, [dispatch, hotelId, hotel]);
 
@@ -241,6 +262,33 @@ const HotelProfileInner = () => {
     dispatch(deleteHotelContract(hotelId, deletingContract.HOTEL_CONTRACT_ID));
     setDeleteModalOpen(false);
     setDeletingContract(null);
+  };
+
+  // Additional Services handlers
+  const getAdditionalServiceId = (s) =>
+    s?.ADDITIONAL_SERVICE_ID ?? s?.HOTEL_ADDITIONAL_SERVICE_ID;
+
+  const openCreateService = () => {
+    setEditingService(null);
+    setServiceModalOpen(true);
+  };
+
+  const openEditService = (s) => {
+    setEditingService(s);
+    setServiceModalOpen(true);
+  };
+
+  const openDeleteService = (s) => {
+    setDeletingService(s);
+    setDeleteServiceModalOpen(true);
+  };
+
+  const doDeleteService = () => {
+    const id = getAdditionalServiceId(deletingService);
+    if (!id) return;
+    dispatch(deleteHotelAdditionalService(hotelId, id));
+    setDeleteServiceModalOpen(false);
+    setDeletingService(null);
   };
 
   if (loadingHotel || (!hotel && !loadError)) {
@@ -565,6 +613,99 @@ const HotelProfileInner = () => {
           </Col>
         </Row>
 
+        {/* ADDITIONAL SERVICES */}
+        <Row className="mt-3">
+          <Col lg={12}>
+            <Card>
+              <CardBody>
+                <div className="d-flex align-items-center justify-content-between mb-3">
+                  <div>
+                    <h6 className="mb-0">Additional Services</h6>
+                    <small className="text-muted">
+                      Manage paid add-ons for this hotel (airport pickup, late
+                      checkout, etc.).
+                    </small>
+                  </div>
+
+                  <Button color="primary" size="sm" onClick={openCreateService}>
+                    <i className="bx bx-plus me-1" />
+                    Add Service
+                  </Button>
+                </div>
+
+                {additionalServicesError && (
+                  <Alert color="danger" className="mb-3">
+                    {additionalServicesError}
+                  </Alert>
+                )}
+
+                {loadingAdditionalServices ? (
+                  <div className="text-center my-3">
+                    <Spinner size="sm" className="me-2" />
+                    Loading additional services...
+                  </div>
+                ) : (additionalServices || []).length === 0 ? (
+                  <p className="text-muted mb-0">
+                    No additional services found for this hotel.
+                  </p>
+                ) : (
+                  <div className="table-responsive">
+                    <Table className="table align-middle table-nowrap mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Name</th>
+                          <th className="text-end" style={{ width: 140 }}>
+                            Amount
+                          </th>
+                          <th>Description</th>
+                          <th className="text-end" style={{ width: 140 }}>
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(additionalServices || []).map((s) => {
+                          const id = getAdditionalServiceId(s);
+                          return (
+                            <tr key={id}>
+                              <td>{s.ADDITIONAL_SERVICE_NAME || "-"}</td>
+                              <td className="text-end">
+                                {s.ADDITIONAL_SERVICE_AMOUNT ?? "-"}
+                              </td>
+                              <td className="text-muted">
+                                {s.ADDITIONAL_SERVICE_DESCRIPTION || "—"}
+                              </td>
+                              <td className="text-end">
+                                <Button
+                                  color="soft-primary"
+                                  size="sm"
+                                  className="me-2"
+                                  onClick={() => openEditService(s)}
+                                  title="Edit"
+                                >
+                                  <i className="bx bx-edit-alt" />
+                                </Button>
+                                <Button
+                                  color="soft-danger"
+                                  size="sm"
+                                  onClick={() => openDeleteService(s)}
+                                  title="Delete"
+                                >
+                                  <i className="bx bx-trash" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
         {/* SEASONS */}
         <Row className="mt-3">
           <Col lg={12}>
@@ -771,7 +912,154 @@ const HotelProfileInner = () => {
           </Formik>
         </Modal>
 
-        {/* Delete Confirm Modal */}
+        {/* Create/Edit Additional Service Modal */}
+        <Modal
+          isOpen={serviceModalOpen}
+          toggle={() => setServiceModalOpen((v) => !v)}
+          centered
+        >
+          <ModalHeader toggle={() => setServiceModalOpen(false)}>
+            {editingService
+              ? "Edit Additional Service"
+              : "Add Additional Service"}
+          </ModalHeader>
+
+          <Formik
+            enableReinitialize
+            initialValues={{
+              ADDITIONAL_SERVICE_NAME:
+                editingService?.ADDITIONAL_SERVICE_NAME || "",
+              ADDITIONAL_SERVICE_AMOUNT:
+                editingService?.ADDITIONAL_SERVICE_AMOUNT === 0 ||
+                editingService?.ADDITIONAL_SERVICE_AMOUNT
+                  ? String(editingService.ADDITIONAL_SERVICE_AMOUNT)
+                  : "",
+              ADDITIONAL_SERVICE_DESCRIPTION:
+                editingService?.ADDITIONAL_SERVICE_DESCRIPTION ?? "",
+            }}
+            validationSchema={Yup.object({
+              ADDITIONAL_SERVICE_NAME:
+                Yup.string().required("Name is required"),
+              ADDITIONAL_SERVICE_AMOUNT: Yup.number()
+                .typeError("Amount must be a number")
+                .required("Amount is required")
+                .min(0, "Amount must be >= 0"),
+              ADDITIONAL_SERVICE_DESCRIPTION: Yup.string().nullable(),
+            })}
+            onSubmit={(values, { setSubmitting }) => {
+              const payload = {
+                ADDITIONAL_SERVICE_NAME: values.ADDITIONAL_SERVICE_NAME,
+                ADDITIONAL_SERVICE_AMOUNT: Number(
+                  values.ADDITIONAL_SERVICE_AMOUNT
+                ),
+                ADDITIONAL_SERVICE_DESCRIPTION:
+                  values.ADDITIONAL_SERVICE_DESCRIPTION?.trim() === ""
+                    ? null
+                    : values.ADDITIONAL_SERVICE_DESCRIPTION,
+              };
+
+              const id = getAdditionalServiceId(editingService);
+
+              if (editingService && id) {
+                dispatch(updateHotelAdditionalService(hotelId, id, payload));
+              } else {
+                dispatch(createHotelAdditionalService(hotelId, payload));
+              }
+
+              setSubmitting(false);
+              setServiceModalOpen(false);
+              setEditingService(null);
+            }}
+          >
+            {({
+              values,
+              errors,
+              touched,
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              isSubmitting,
+            }) => (
+              <Form onSubmit={handleSubmit}>
+                <ModalBody>
+                  <div className="mb-3">
+                    <Label>Name</Label>
+                    <Input
+                      name="ADDITIONAL_SERVICE_NAME"
+                      value={values.ADDITIONAL_SERVICE_NAME}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      invalid={
+                        touched.ADDITIONAL_SERVICE_NAME &&
+                        !!errors.ADDITIONAL_SERVICE_NAME
+                      }
+                    />
+                    <FormFeedback>
+                      {errors.ADDITIONAL_SERVICE_NAME}
+                    </FormFeedback>
+                  </div>
+
+                  <div className="mb-3">
+                    <Label>Amount</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="ADDITIONAL_SERVICE_AMOUNT"
+                      value={values.ADDITIONAL_SERVICE_AMOUNT}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      invalid={
+                        touched.ADDITIONAL_SERVICE_AMOUNT &&
+                        !!errors.ADDITIONAL_SERVICE_AMOUNT
+                      }
+                    />
+                    <FormFeedback>
+                      {errors.ADDITIONAL_SERVICE_AMOUNT}
+                    </FormFeedback>
+                  </div>
+
+                  <div className="mb-0">
+                    <Label>Description (optional)</Label>
+                    <Input
+                      type="textarea"
+                      rows="3"
+                      name="ADDITIONAL_SERVICE_DESCRIPTION"
+                      value={values.ADDITIONAL_SERVICE_DESCRIPTION}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    />
+                    <small className="text-muted d-block mt-1">
+                      Leave empty to clear description (sends <code>null</code>
+                      ).
+                    </small>
+                  </div>
+                </ModalBody>
+
+                <ModalFooter>
+                  <Button
+                    type="button"
+                    color="secondary"
+                    onClick={() => setServiceModalOpen(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" color="primary" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Spinner size="sm" className="me-2" /> Saving...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
+                </ModalFooter>
+              </Form>
+            )}
+          </Formik>
+        </Modal>
+
+        {/* Delete Confirm Modal (Contracts) */}
         <Modal
           isOpen={deleteModalOpen}
           toggle={() => setDeleteModalOpen(false)}
@@ -795,6 +1083,34 @@ const HotelProfileInner = () => {
               Cancel
             </Button>
             <Button color="danger" onClick={doDeleteContract}>
+              Delete
+            </Button>
+          </ModalFooter>
+        </Modal>
+
+        {/* Delete Confirm Modal (Additional Services) */}
+        <Modal
+          isOpen={deleteServiceModalOpen}
+          toggle={() => setDeleteServiceModalOpen(false)}
+          centered
+        >
+          <ModalHeader toggle={() => setDeleteServiceModalOpen(false)}>
+            Delete Additional Service
+          </ModalHeader>
+          <ModalBody>
+            Are you sure you want to delete this additional service?
+            <div className="mt-2 text-muted">
+              {deletingService?.ADDITIONAL_SERVICE_NAME || ""}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="secondary"
+              onClick={() => setDeleteServiceModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button color="danger" onClick={doDeleteService}>
               Delete
             </Button>
           </ModalFooter>

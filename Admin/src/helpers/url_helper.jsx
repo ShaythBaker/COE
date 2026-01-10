@@ -18,7 +18,6 @@ export const GET_ATTACHMENT_URL = "/api/attachments";
 // Lists
 export const GET_LIST_BY_KEY = "/api/lists/by-key";
 
-
 // PROFILE
 export const POST_EDIT_JWT_PROFILE = "/api/auth/profile";
 export const POST_EDIT_PROFILE = "/post-fake-profile";
@@ -51,7 +50,7 @@ export const GET_HR_EMPLOYEE = "/api/hr/employees";
 // ====================
 
 // ✅ Rule Management uses HR Roles endpoint
-export const GET_HR_RULES   = GET_HR_ROLES;
+export const GET_HR_RULES = GET_HR_ROLES;
 export const CREATE_HR_RULE = "/api/hr/roles";
 export const UPDATE_HR_RULE = "/api/hr/roles";
 export const DELETE_HR_RULE = "/api/hr/roles";
@@ -63,7 +62,6 @@ export const DELETE_HR_RULE = "/api/hr/roles";
 export const GET_SYSTEM_LISTS = "/api/lists"; // will use ?ACTIVE_STATUS=1
 export const GET_SYSTEM_LIST_ITEMS_BY_ID = "/api/lists"; // base for /:LIST_ID/items
 export const GET_SYSTEM_LIST_ITEMS = "/api/lists/by-key"; // base for /:LIST_KEY
-
 
 // ==================== // HOTELS (CONTRACTING) // ====================
 
@@ -77,7 +75,52 @@ export const HOTEL_CONTRACTS_BASE = "/api/hotels"; // use with /:HOTEL_ID/contra
 export const HOTEL_SEASONS_BASE = "/api/hotels"; // use with /:HOTEL_ID/seasons
 export const HOTEL_SEASONS_WITH_RATES_BASE = "/api/hotels"; // use with /:HOTEL_ID/seasons-with-rates
 
+// ====================
+// HOTEL SEASON RATES
+// ====================
 
+// Rates are nested inside seasons
+// /api/hotels/:HOTEL_ID/seasons/:SEASON_ID/rates
+export const HOTEL_SEASON_RATES_BASE = "/api/hotels";
+// ====================
+// HOTEL ADDITIONAL SEVICES
+// ====================
+
+// /api/hotels/:HOTEL_ID/additional-services
+export const HOTEL_ADDITIONAL_SERVICES_BASE = "/api/hotels";
+
+// ====================
+// CLIENTS
+// ====================
+
+// Clients
+export const GET_CLIENTS = "/api/clients";
+export const GET_CLIENT_BY_ID = "/api/clients"; // use /:CLIENT_ID
+
+// Guides
+export const GET_GUIDES = "/api/guides";
+export const GET_GUIDE_BY_ID = "/api/guides"; // use with /:GUIDE_ID
+export const CREATE_GUIDE = "/api/guides";
+export const UPDATE_GUIDE = "/api/guides"; // use with /:GUIDE_ID
+export const DELETE_GUIDE = "/api/guides"; // use with /:GUIDE_ID
+
+
+// ========================
+// TRANSPORTATION (CONTRACTING)
+// ========================
+export const TRANSPORTATION_BASE = "/api/transportation";
+
+// Companies
+export const TRANSPORTATION_COMPANIES = `${TRANSPORTATION_BASE}/companies`; // GET, POST
+
+// Contracts (nested + direct)
+export const TRANSPORTATION_COMPANY_CONTRACTS = `${TRANSPORTATION_BASE}/companies`; // /:companyId/contracts
+export const TRANSPORTATION_CONTRACTS = `${TRANSPORTATION_BASE}/contracts`; // /:contractId
+
+// Vehicles (nested + direct)
+export const TRANSPORTATION_COMPANY_VEHICLES = `${TRANSPORTATION_BASE}/companies`; // /:companyId/vehicles
+export const TRANSPORTATION_VEHICLES = `${TRANSPORTATION_BASE}/vehicles`; // /:vehicleId
+// ====================
 
 // ====================
 // PRODUCTS

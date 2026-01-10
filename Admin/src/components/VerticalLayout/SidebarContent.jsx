@@ -218,8 +218,6 @@ const SidebarContent = (props) => {
               </ul>
             </li>
 
-
-
             {canSeeHr && (
               <li>
                 <Link to="/#" className="has-arrow">
@@ -239,7 +237,6 @@ const SidebarContent = (props) => {
                 </ul>
               </li>
             )}
-
 
             {/* System Configuration (conditional) */}
             {canSeeAdmin && (
@@ -274,12 +271,25 @@ const SidebarContent = (props) => {
                   <li>
                     <Link to="/contracting/hotels">{props.t("Hotels")}</Link>
                   </li>
+                  <li>
+                    <Link to="/contracting/clients">{props.t("Clients")}</Link>
+                  </li>
+
+                  <li>
+                    <Link to="/contracting/guides">{props.t("Guides")}</Link>
+                  </li>
+                  <li>
+                    <Link to="/contracting/transportation/companies">
+                      {props.t("Transportation")}
+                    </Link>
+                  </li>
+                  
                   {/* later we can add more contracting items here */}
                 </ul>
               </li>
             )}
 
-                        {/* Quick Actions */}
+            {/* Quick Actions */}
             <li>
               <Link to="/#" className="has-arrow">
                 <i className="bx bx-bolt-circle"></i>

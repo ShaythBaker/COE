@@ -1,17 +1,18 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
 
-const authRoutes = require('./modules/auth/auth.routes');
-const hrRoutes = require('./modules/hr/hr.routes');
-const generalRoutes = require('./modules/general/general.routes');
+const authRoutes = require("./modules/auth/auth.routes");
+const hrRoutes = require("./modules/hr/hr.routes");
+const generalRoutes = require("./modules/general/general.routes");
 const accessRoutes = require("./modules/access/access.routes");
 const attachmentsRoutes = require("./modules/attachments/attachments.routes");
-const listsRoutes = require("./modules/lists/lists.routes"); 
+const listsRoutes = require("./modules/lists/lists.routes");
 const flightsRoutes = require("./modules/flights/flights.routes");
-const hotelsRoutes = require('./modules/hotels/hotels.routes');
-
-
+const hotelsRoutes = require("./modules/hotels/hotels.routes");
+const clientsRoutes = require("./modules/clients/clients.routes");
+const guidesRoutes = require("./modules/guides/guides.routes");
+const transportationRoutes = require("./modules/transportation/transportation.routes");
 
 const app = express();
 
@@ -27,22 +28,24 @@ app.use((req, res, next) => {
 
 app.use("/api/attachments", attachmentsRoutes);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/hr', hrRoutes);
-app.use('/api/general', generalRoutes);
-app.use('/api/lists', listsRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/hr", hrRoutes);
+app.use("/api/general", generalRoutes);
+app.use("/api/lists", listsRoutes);
 app.use("/api/flights", flightsRoutes);
-app.use('/api/hotels', hotelsRoutes);
+app.use("/api/hotels", hotelsRoutes);
+app.use("/api/access", accessRoutes);
+app.use("/api/clients", clientsRoutes);
+app.use("/api/guides", guidesRoutes);
+app.use("/api/transportation", transportationRoutes);
 
-
-
-app.get('/', (req, res) => {
-  res.json({ message: 'API is running' });
+app.get("/", (req, res) => {
+  res.json({ message: "API is running" });
 });
 
 app.use((req, res) => {
   console.log(`[NOT FOUND] ${req.method} ${req.url}`);
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ message: "Route not found" });
 });
 
 const PORT = process.env.PORT || 5000;

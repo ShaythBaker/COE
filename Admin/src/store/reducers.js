@@ -13,7 +13,7 @@ import Profile from "./auth/profile/reducer";
 
 import SystemLists from "./SystemLists/reducer";
 
-// HR 
+// HR
 
 import hrEmployees from "./hrEmployees/reducer";
 import HrRules from "./HrRules/reducer";
@@ -21,6 +21,10 @@ import HrRules from "./HrRules/reducer";
 //CONTRACTING
 
 import hotels from "./hotels/reducer";
+import Clients from "./clients/reducer";
+import Guides from "./guides/reducer";
+import Transportation from "./transportation/reducer";
+
 
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
@@ -43,7 +47,6 @@ import JobReducer from "./jobs/reducer";
 //projects
 import projects from "./projects/reducer";
 
-
 //tasks
 import tasks from "./tasks/reducer";
 
@@ -53,7 +56,7 @@ import contacts from "./contacts/reducer";
 //mails
 import mails from "./mails/reducer";
 
-//Dashboard 
+//Dashboard
 import Dashboard from "./dashboard/reducer";
 
 //Dasboard saas
@@ -67,7 +70,6 @@ import DashboardBlog from "./dashboard-blog/reducer";
 
 //Dasboard job
 import DashboardJob from "./dashboard-jobs/reducer";
-
 
 import Permissions from "./permissions/reducer";
 
@@ -98,6 +100,9 @@ const rootReducer = combineReducers({
   HrRules,
   SystemLists,
   hotels,
+  Clients,
+  Guides,
+  Transportation,
 });
 
 export default rootReducer;

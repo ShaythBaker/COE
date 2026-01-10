@@ -31,8 +31,20 @@ import HotelProfile from "../pages/Contracting/HotelProfile";
 import HotelContractDetails from "../pages/Contracting/HotelContractDetails";
 import HotelSeasons from "../pages/Contracting/HotelSeasons";
 import HotelSeasonsWithRates from "../pages/Contracting/HotelSeasonsWithRates";
+// import ClientsList from "../pages/Clients/ClientsList";
+import ClientsList from "../pages/Contracting/ClientsList";
+import ClientCreate from "../pages/Contracting/ClientCreate";
+import ClientProfile from "../pages/Contracting/ClientProfile";
 
-//QUICK ACTIONS 
+import GuidesList from "../pages/Contracting/Guides";
+import GuideForm from "../pages/Contracting/GuideForm";
+import GuideDetails from "../pages/Contracting/GuideDetails";
+
+import TransportationCompaniesList from "../pages/Contracting/TransportationCompaniesList";
+import TransportationCompanyCreate from "../pages/Contracting/TransportationCompanyCreate";
+import TransportationCompanyProfile from "../pages/Contracting/TransportationCompanyProfile";
+
+//QUICK ACTIONS
 
 import QuickActionsRequests from "../pages/QuickActions/Requests";
 import RequestsView from "../pages/QuickActions/RequestsView";
@@ -238,8 +250,8 @@ const authProtectedRoutes = [
   },
 
   {
-  path: "/hr/users/:id/view",
-  component: <HrUsersView />,
+    path: "/hr/users/:id/view",
+    component: <HrUsersView />,
   },
 
   // System Configuration
@@ -284,19 +296,75 @@ const authProtectedRoutes = [
     path: "/contracting/hotels/:hotelId/seasons-with-rates",
     component: <HotelSeasonsWithRates />,
   },
+  {
+    path: "/contracting/clients",
+    component: <ClientsList />,
+  },
+  {
+    path: "/contracting/clients/create",
+    component: <ClientCreate />,
+  },
+  {
+    path: "/contracting/clients/:clientId",
+    component: <ClientProfile />,
+  },
+  {
+    path: "/contracting/transportation/companies",
+    component: <TransportationCompaniesList />,
+  },
+  {
+    path: "/contracting/transportation/companies/create",
+    component: <TransportationCompanyCreate />,
+  },
+  {
+    path: "/contracting/transportation/companies/:companyId",
+    component: <TransportationCompanyProfile />,
+  },
+
+  {
+    path: "/contracting/guides",
+    component: (
+      <RequireModule module="GUIDES">
+        <GuidesList />
+      </RequireModule>
+    ),
+  },
+  {
+    path: "/contracting/guides/create",
+    component: (
+      <RequireModule module="GUIDES">
+        <GuideForm />
+      </RequireModule>
+    ),
+  },
+  {
+    path: "/contracting/guides/:id/edit",
+    component: (
+      <RequireModule module="GUIDES">
+        <GuideForm />
+      </RequireModule>
+    ),
+  },
+  {
+    path: "/contracting/guides/:id",
+    component: (
+      <RequireModule module="GUIDES">
+        <GuideDetails />
+      </RequireModule>
+    ),
+  },
 
   //QUICK ACTIONS
 
   {
-  path: "/quick-actions/requests",
-  component: <QuickActionsRequests />,
+    path: "/quick-actions/requests",
+    component: <QuickActionsRequests />,
   },
 
   {
-  path: "/quick-actions/requests/:id/view",
-  component: <RequestsView />,
-},
-
+    path: "/quick-actions/requests/:id/view",
+    component: <RequestsView />,
+  },
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },
