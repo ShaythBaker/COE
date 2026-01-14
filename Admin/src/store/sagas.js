@@ -18,7 +18,7 @@ import mailsSaga from "./mails/saga";
 import contactsSaga from "./contacts/saga";
 import dashboardSaga from "./dashboard/saga";
 import dashboardSaasSaga from "./dashboard-saas/saga";
-import dashboardCryptoSaga from "./dashboard-crypto/saga"
+import dashboardCryptoSaga from "./dashboard-crypto/saga";
 import dashboardBlogSaga from "./dashboard-blog/saga";
 import dashboardJobSaga from "./dashboard-jobs/saga";
 import PermissionsSaga from "./permissions/saga";
@@ -29,6 +29,8 @@ import hotelsSaga from "./hotels/saga";
 import clentsSaga from "./clients/saga";
 import GuidesSaga from "./guides/saga";
 import TransportationSaga from "./transportation/saga";
+import placesSaga from "./places/saga";
+import placeEntranceFeesSaga from "./PlaceEntranceFees/saga";
 
 export default function* rootSaga() {
   yield all([
@@ -61,5 +63,7 @@ export default function* rootSaga() {
     fork(clentsSaga),
     fork(GuidesSaga),
     fork(TransportationSaga),
+    fork(placesSaga),
+    fork(placeEntranceFeesSaga),
   ]);
 }

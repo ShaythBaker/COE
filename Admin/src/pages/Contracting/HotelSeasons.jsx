@@ -57,6 +57,16 @@ const isSeasonExpired = (seasonEndDate) => {
   return Date.now() > end.getTime();
 };
 
+const toNumberOrZero = (val) => {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const displayAmount = (val) => {
+  if (val === null || val === undefined || val === "") return "-";
+  return val;
+};
+
 const HotelSeasonsInner = () => {
   document.title = "Hotel Seasons | COE";
 
@@ -373,7 +383,6 @@ const HotelSeasonsInner = () => {
               onSubmit={(values, { setSubmitting }) => {
                 try {
                   const payload = {
-                    // ✅ send numeric ID like old version
                     SEASON_NAME_ID: Number(values.SEASON_NAME_ID),
                     SEASON_START_DATE: values.SEASON_START_DATE,
                     SEASON_END_DATE: values.SEASON_END_DATE,
@@ -406,12 +415,11 @@ const HotelSeasonsInner = () => {
                   <ModalBody>
                     <Alert color="info" className="py-2">
                       <small className="mb-0 d-block">
-                        Season name is selected by{" "}
-                        <strong>SEASON_NAME_ID</strong>.
+                        If the Season is not listed Ask your system
+                        Administrator to Add it.{" "}
                       </small>
                     </Alert>
 
-                    {/* ✅ FIXED: dropdown bound to HOTEL_SEASONS list */}
                     <div className="mb-3">
                       <Label>Season</Label>
                       <Input
@@ -611,14 +619,21 @@ const HotelSeasonsInner = () => {
                 </Button>
               </div>
 
+              <Alert color="info" className="py-2">
+                <small className="mb-0 d-block">
+                  Room rate date range was removed — backend will handle dates.
+                </small>
+              </Alert>
+
               <div className="table-responsive">
                 <Table className="table align-middle table-nowrap">
                   <thead className="table-light">
                     <tr>
-                      <th>Rate For</th>
-                      <th>Start</th>
-                      <th>End</th>
-                      <th className="text-end">Amount</th>
+                      <th>Room / Rate For</th>
+                      <th className="text-end">Rate</th>
+                      <th className="text-end">Half Board</th>
+                      <th className="text-end">Full Board</th>
+                      <th className="text-end">Single Supplement</th>
                       <th className="text-end">Actions</th>
                     </tr>
                   </thead>
@@ -626,9 +641,18 @@ const HotelSeasonsInner = () => {
                     {selectedRates.map((r) => (
                       <tr key={r.RATE_ID}>
                         <td>{r.ITEM_NAME || rateForLabel(r.RATE_FOR_ID)}</td>
-                        <td>{toYMD(r.RATE_START_DATE) || "-"}</td>
-                        <td>{toYMD(r.RATE_END_DATE) || "-"}</td>
-                        <td className="text-end">{r.RATE_AMOUNT ?? "-"}</td>
+                        <td className="text-end">
+                          {displayAmount(r.RATE_AMOUNT)}
+                        </td>
+                        <td className="text-end">
+                          {displayAmount(r.RATE_HALF_BOARD_AMOUNT)}
+                        </td>
+                        <td className="text-end">
+                          {displayAmount(r.RATE_FULL_BOARD_AMOUNT)}
+                        </td>
+                        <td className="text-end">
+                          {displayAmount(r.RATE_SINGLE_SPPLIMENT_AMOUNT)}
+                        </td>
                         <td className="text-end">
                           <div className="d-flex justify-content-end gap-2">
                             <Button
@@ -662,7 +686,7 @@ const HotelSeasonsInner = () => {
 
                     {selectedRates.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="text-center text-muted py-4">
+                        <td colSpan={6} className="text-center text-muted py-4">
                           No rates for this season.
                         </td>
                       </tr>
@@ -695,38 +719,52 @@ const HotelSeasonsInner = () => {
                 RATE_FOR_ID: editingRate
                   ? String(editingRate.RATE_FOR_ID || "")
                   : "",
-                RATE_START_DATE: editingRate
-                  ? toYMD(editingRate.RATE_START_DATE)
-                  : "",
-                RATE_END_DATE: editingRate
-                  ? toYMD(editingRate.RATE_END_DATE)
-                  : "",
                 RATE_AMOUNT:
                   editingRate?.RATE_AMOUNT === null ||
                   editingRate?.RATE_AMOUNT === undefined
                     ? ""
                     : String(editingRate.RATE_AMOUNT),
+
+                // ✅ new backend fields
+                RATE_HALF_BOARD_AMOUNT:
+                  editingRate?.RATE_HALF_BOARD_AMOUNT === null ||
+                  editingRate?.RATE_HALF_BOARD_AMOUNT === undefined
+                    ? "0"
+                    : String(editingRate.RATE_HALF_BOARD_AMOUNT),
+                RATE_FULL_BOARD_AMOUNT:
+                  editingRate?.RATE_FULL_BOARD_AMOUNT === null ||
+                  editingRate?.RATE_FULL_BOARD_AMOUNT === undefined
+                    ? "0"
+                    : String(editingRate.RATE_FULL_BOARD_AMOUNT),
+                RATE_SINGLE_SPPLIMENT_AMOUNT:
+                  editingRate?.RATE_SINGLE_SPPLIMENT_AMOUNT === null ||
+                  editingRate?.RATE_SINGLE_SPPLIMENT_AMOUNT === undefined
+                    ? "0"
+                    : String(editingRate.RATE_SINGLE_SPPLIMENT_AMOUNT),
               }}
               validationSchema={Yup.object({
                 RATE_FOR_ID: Yup.string().required(
                   "Reservation type is required"
                 ),
-                RATE_START_DATE: Yup.string().nullable(),
-                RATE_END_DATE: Yup.string()
-                  .nullable()
-                  .test(
-                    "endAfterStart",
-                    "End date must be after start date",
-                    function (value) {
-                      const { RATE_START_DATE } = this.parent;
-                      if (!RATE_START_DATE || !value) return true;
-                      return new Date(value) >= new Date(RATE_START_DATE);
-                    }
-                  ),
                 RATE_AMOUNT: Yup.number()
-                  .typeError("Amount must be a number")
-                  .required("Amount is required")
-                  .min(0, "Amount must be >= 0"),
+                  .typeError("Rate must be a number")
+                  .required("Rate is required")
+                  .min(0, "Rate must be >= 0"),
+
+                RATE_HALF_BOARD_AMOUNT: Yup.number()
+                  .typeError("Half board must be a number")
+                  .required("Half board is required")
+                  .min(0, "Half board must be >= 0"),
+
+                RATE_FULL_BOARD_AMOUNT: Yup.number()
+                  .typeError("Full board must be a number")
+                  .required("Full board is required")
+                  .min(0, "Full board must be >= 0"),
+
+                RATE_SINGLE_SPPLIMENT_AMOUNT: Yup.number()
+                  .typeError("Single supplement must be a number")
+                  .required("Single supplement is required")
+                  .min(0, "Single supplement must be >= 0"),
               })}
               onSubmit={(values, { setSubmitting }) => {
                 try {
@@ -734,9 +772,22 @@ const HotelSeasonsInner = () => {
 
                   const payload = {
                     RATE_FOR_ID: values.RATE_FOR_ID,
-                    RATE_START_DATE: values.RATE_START_DATE || null,
-                    RATE_END_DATE: values.RATE_END_DATE || null,
-                    RATE_AMOUNT: values.RATE_AMOUNT,
+
+                    // ❌ removed date range (backend handles it)
+                    RATE_START_DATE: null,
+                    RATE_END_DATE: null,
+
+                    // ✅ amounts
+                    RATE_AMOUNT: toNumberOrZero(values.RATE_AMOUNT),
+                    RATE_HALF_BOARD_AMOUNT: toNumberOrZero(
+                      values.RATE_HALF_BOARD_AMOUNT
+                    ),
+                    RATE_FULL_BOARD_AMOUNT: toNumberOrZero(
+                      values.RATE_FULL_BOARD_AMOUNT
+                    ),
+                    RATE_SINGLE_SPPLIMENT_AMOUNT: toNumberOrZero(
+                      values.RATE_SINGLE_SPPLIMENT_AMOUNT
+                    ),
                   };
 
                   if (editingRate) {
@@ -776,7 +827,7 @@ const HotelSeasonsInner = () => {
                 <Form onSubmit={handleSubmit}>
                   <ModalBody>
                     <div className="mb-3">
-                      <Label>Rate For (Reservation Type)</Label>
+                      <Label>Room / Rate For (Reservation Type)</Label>
                       <Input
                         type="select"
                         name="RATE_FOR_ID"
@@ -801,21 +852,66 @@ const HotelSeasonsInner = () => {
                     <Row>
                       <Col md={6}>
                         <div className="mb-3">
-                          <Label>Rate Start Date (optional)</Label>
+                          <Label>Rate</Label>
                           <Input
-                            type="date"
-                            name="RATE_START_DATE"
-                            value={values.RATE_START_DATE}
+                            name="RATE_AMOUNT"
+                            value={values.RATE_AMOUNT}
                             onChange={handleChange}
                             onBlur={handleBlur}
                             invalid={
-                              touched.RATE_START_DATE &&
-                              !!errors.RATE_START_DATE
+                              touched.RATE_AMOUNT && !!errors.RATE_AMOUNT
                             }
+                            placeholder="Enter rate"
                           />
-                          {touched.RATE_START_DATE && errors.RATE_START_DATE ? (
+                          {touched.RATE_AMOUNT && errors.RATE_AMOUNT ? (
+                            <FormFeedback>{errors.RATE_AMOUNT}</FormFeedback>
+                          ) : null}
+                        </div>
+                      </Col>
+
+                      <Col md={6}>
+                        <div className="mb-3">
+                          <Label>Single Supplement</Label>
+                          <Input
+                            name="RATE_SINGLE_SPPLIMENT_AMOUNT"
+                            value={values.RATE_SINGLE_SPPLIMENT_AMOUNT}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            invalid={
+                              touched.RATE_SINGLE_SPPLIMENT_AMOUNT &&
+                              !!errors.RATE_SINGLE_SPPLIMENT_AMOUNT
+                            }
+                            placeholder="Enter single supplement"
+                          />
+                          {touched.RATE_SINGLE_SPPLIMENT_AMOUNT &&
+                          errors.RATE_SINGLE_SPPLIMENT_AMOUNT ? (
                             <FormFeedback>
-                              {errors.RATE_START_DATE}
+                              {errors.RATE_SINGLE_SPPLIMENT_AMOUNT}
+                            </FormFeedback>
+                          ) : null}
+                        </div>
+                      </Col>
+                    </Row>
+
+                    <Row>
+                      <Col md={6}>
+                        <div className="mb-3">
+                          <Label>Half Board</Label>
+                          <Input
+                            name="RATE_HALF_BOARD_AMOUNT"
+                            value={values.RATE_HALF_BOARD_AMOUNT}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            invalid={
+                              touched.RATE_HALF_BOARD_AMOUNT &&
+                              !!errors.RATE_HALF_BOARD_AMOUNT
+                            }
+                            placeholder="Enter half board amount"
+                          />
+                          {touched.RATE_HALF_BOARD_AMOUNT &&
+                          errors.RATE_HALF_BOARD_AMOUNT ? (
+                            <FormFeedback>
+                              {errors.RATE_HALF_BOARD_AMOUNT}
                             </FormFeedback>
                           ) : null}
                         </div>
@@ -823,43 +919,31 @@ const HotelSeasonsInner = () => {
 
                       <Col md={6}>
                         <div className="mb-3">
-                          <Label>Rate End Date (optional)</Label>
+                          <Label>Full Board</Label>
                           <Input
-                            type="date"
-                            name="RATE_END_DATE"
-                            value={values.RATE_END_DATE}
+                            name="RATE_FULL_BOARD_AMOUNT"
+                            value={values.RATE_FULL_BOARD_AMOUNT}
                             onChange={handleChange}
                             onBlur={handleBlur}
                             invalid={
-                              touched.RATE_END_DATE && !!errors.RATE_END_DATE
+                              touched.RATE_FULL_BOARD_AMOUNT &&
+                              !!errors.RATE_FULL_BOARD_AMOUNT
                             }
+                            placeholder="Enter full board amount"
                           />
-                          {touched.RATE_END_DATE && errors.RATE_END_DATE ? (
-                            <FormFeedback>{errors.RATE_END_DATE}</FormFeedback>
+                          {touched.RATE_FULL_BOARD_AMOUNT &&
+                          errors.RATE_FULL_BOARD_AMOUNT ? (
+                            <FormFeedback>
+                              {errors.RATE_FULL_BOARD_AMOUNT}
+                            </FormFeedback>
                           ) : null}
                         </div>
                       </Col>
                     </Row>
 
-                    <div className="mb-3">
-                      <Label>Amount</Label>
-                      <Input
-                        name="RATE_AMOUNT"
-                        value={values.RATE_AMOUNT}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        invalid={touched.RATE_AMOUNT && !!errors.RATE_AMOUNT}
-                        placeholder="Enter rate amount"
-                      />
-                      {touched.RATE_AMOUNT && errors.RATE_AMOUNT ? (
-                        <FormFeedback>{errors.RATE_AMOUNT}</FormFeedback>
-                      ) : null}
-                    </div>
-
                     <div className="alert alert-info mb-0">
-                      Rates are stored <strong>inside the season</strong>. If
-                      the season expires, these rates become unavailable
-                      automatically.
+                      Date range was removed for room rates — backend will
+                      handle dates.
                     </div>
                   </ModalBody>
 

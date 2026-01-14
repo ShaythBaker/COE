@@ -28,6 +28,10 @@ const INIT_STATE = {
   // generic message
   successMessage: null,
   errorMessage: null,
+  //fees
+  fees: [],
+  loadingFees: false,
+  feesError: null,
 };
 
 const Transportation = (state = INIT_STATE, action) => {
@@ -171,6 +175,67 @@ const Transportation = (state = INIT_STATE, action) => {
     // UI
     case t.CLEAR_TRANSPORTATION_MESSAGES:
       return { ...state, successMessage: null, errorMessage: null };
+
+    // ===== Fees =====
+    case t.GET_TRANSPORTATION_COMPANY_FEES:
+      return {
+        ...state,
+        loadingFees: true,
+        feesError: null,
+      };
+
+    case t.GET_TRANSPORTATION_COMPANY_FEES_SUCCESS:
+      return {
+        ...state,
+        loadingFees: false,
+        fees: Array.isArray(action.payload) ? action.payload : [],
+      };
+
+    case t.GET_TRANSPORTATION_COMPANY_FEES_FAIL:
+      return {
+        ...state,
+        loadingFees: false,
+        feesError: action.payload,
+        fees: [],
+      };
+
+    case t.CREATE_TRANSPORTATION_COMPANY_FEE:
+    case t.UPDATE_TRANSPORTATION_FEE:
+    case t.DELETE_TRANSPORTATION_FEE:
+      return {
+        ...state,
+        feesError: null,
+        // keep messages consistent with your other blocks
+        errorMessage: null,
+        successMessage: null,
+      };
+
+    case t.CREATE_TRANSPORTATION_COMPANY_FEE_SUCCESS:
+      return {
+        ...state,
+        successMessage: "Fee saved successfully.",
+      };
+
+    case t.UPDATE_TRANSPORTATION_FEE_SUCCESS:
+      return {
+        ...state,
+        successMessage: "Fee updated successfully.",
+      };
+
+    case t.DELETE_TRANSPORTATION_FEE_SUCCESS:
+      return {
+        ...state,
+        successMessage: "Fee deactivated successfully.",
+      };
+
+    case t.CREATE_TRANSPORTATION_COMPANY_FEE_FAIL:
+    case t.UPDATE_TRANSPORTATION_FEE_FAIL:
+    case t.DELETE_TRANSPORTATION_FEE_FAIL:
+      return {
+        ...state,
+        feesError: action.payload,
+        errorMessage: action.payload,
+      };
 
     default:
       return state;

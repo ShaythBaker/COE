@@ -99,4 +99,36 @@ router.delete(
   transportationController.deleteVehicle
 );
 
+// ===== Fees =====
+router.get(
+  "/companies/:TRANSPORTATION_COMPANY_ID/fees",
+  authMiddleware,
+  transportationController.listFeesForCompany
+);
+
+router.post(
+  "/companies/:TRANSPORTATION_COMPANY_ID/fees",
+  authMiddleware,
+  transportationController.createFeeForCompany
+);
+
+router.get(
+  "/fees/:TRANSPORTATION_FEE_ID",
+  authMiddleware,
+  transportationController.getFeeById
+);
+
+router.put(
+  "/fees/:TRANSPORTATION_FEE_ID",
+  authMiddleware,
+  transportationController.updateFee
+);
+
+router.delete(
+  "/fees/:TRANSPORTATION_FEE_ID",
+  authMiddleware,
+  transportationController.deleteFee
+);
+
+
 module.exports = router;

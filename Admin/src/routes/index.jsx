@@ -44,6 +44,11 @@ import TransportationCompaniesList from "../pages/Contracting/TransportationComp
 import TransportationCompanyCreate from "../pages/Contracting/TransportationCompanyCreate";
 import TransportationCompanyProfile from "../pages/Contracting/TransportationCompanyProfile";
 
+// PLACES
+import PlacesList from "../pages/Places/PlacesList";
+import PlaceCreate from "../pages/Places/PlaceCreate";
+import PlaceProfile from "../pages/Places/PlaceProfile";
+
 //QUICK ACTIONS
 
 import QuickActionsRequests from "../pages/QuickActions/Requests";
@@ -353,6 +358,9 @@ const authProtectedRoutes = [
       </RequireModule>
     ),
   },
+  { path: "/contracting/places", component: <PlacesList /> },
+  { path: "/contracting/places/create", component: <PlaceCreate /> },
+  { path: "/contracting/places/:placeId", component: <PlaceProfile /> },
 
   //QUICK ACTIONS
 

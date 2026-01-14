@@ -1,3 +1,4 @@
+// modules/auth/auth.controller.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -5,6 +6,9 @@ const dbService = require("../../core/dbService");
 
 const USERS_TABLE = "COE_TBL_USERS";
 const PASSWORD_RESETS_TABLE = "COE_TBL_PASSWORD_RESETS";
+
+// NEW
+const REFRESH_TOKENS_TABLE = "COE_TBL_REFRESH_TOKENS";
 
 // Helper: get COMPANY_ID from JWT/session/body
 function getCompanyId(req) {
@@ -16,7 +20,77 @@ function getCompanyId(req) {
   return null;
 }
 
-// POST /api/auth/register
+function sha256Hex(input) {
+  return crypto.createHash("sha256").update(String(input)).digest("hex");
+}
+
+function generateRefreshToken() {
+  return crypto.randomBytes(64).toString("hex");
+}
+
+function hoursFromNow(h) {
+  return new Date(Date.now() + h * 60 * 60 * 1000);
+}
+
+function daysFromNow(d) {
+  return new Date(Date.now() + d * 24 * 60 * 60 * 1000);
+}
+
+function getCookieOptions(expiresAt) {
+  // Cookie available for /api/auth/* so both refresh and logout can access it
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/auth",
+    expires: expiresAt,
+  };
+}
+
+async function storeRefreshTokenRow({ companyId, userId, tokenHash, expiresAt, sessionExpiresAt }) {
+  await dbService.insert(
+    REFRESH_TOKENS_TABLE,
+    {
+      USER_ID: userId,
+      COMPANY_ID: companyId,
+      TOKEN_HASH: tokenHash,
+      EXPIRES_AT: expiresAt,
+      SESSION_EXPIRES_AT: sessionExpiresAt,
+      REVOKED: 0,
+    },
+    companyId
+  );
+}
+
+async function revokeRefreshTokenRow({ companyId, tokenHash }) {
+  // Best-effort revoke
+  await dbService.update(
+    REFRESH_TOKENS_TABLE,
+    { REVOKED: 1 },
+    { TOKEN_HASH: tokenHash },
+    companyId
+  );
+}
+
+async function findActiveRefreshRow({ tokenHash }) {
+  // No company scope here because we derive it from row
+  const rows = await dbService.find({
+    table: REFRESH_TOKENS_TABLE,
+    where: { TOKEN_HASH: tokenHash, REVOKED: 0 },
+    limit: 1,
+  });
+
+  return rows && rows.length ? rows[0] : null;
+}
+
+function signAccessToken(payload) {
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    // access token short-lived (recommended)
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+  });
+}
+
+// POST /api/auth/register  (UNCHANGED from your file except kept as-is)
 async function register(req, res) {
   try {
     const {
@@ -28,7 +102,7 @@ async function register(req, res) {
       DEPATRMENT_ID,
       PHONE_NUMBER,
       ACTIVE_STATUS,
-      COMPANY_ID, // optional from body
+      COMPANY_ID,
     } = req.body;
 
     if (!FIRST_NAME || !LAST_NAME || !EMAIL || !PASSWORD) {
@@ -40,13 +114,8 @@ async function register(req, res) {
     const companyIdFromContext = getCompanyId(req);
     const companyId = COMPANY_ID || companyIdFromContext || null;
 
-    // Check if email exists (scoped by company if we have it)
     const existingUsers = await dbService.find(
-      {
-        table: USERS_TABLE,
-        where: { EMAIL },
-        limit: 1,
-      },
+      { table: USERS_TABLE, where: { EMAIL }, limit: 1 },
       companyId
     );
 
@@ -54,10 +123,8 @@ async function register(req, res) {
       return res.status(409).json({ message: "EMAIL already registered" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(PASSWORD, 10);
 
-    // Insert user (dbService will inject COMPANY_ID if provided)
     const result = await dbService.insert(
       USERS_TABLE,
       {
@@ -113,56 +180,67 @@ async function login(req, res) {
     if (!users.length) {
       return res.status(401).json({
         status: false,
+        code: "INVALID_CREDENTIALS",
         message: "Invalid email or password",
       });
     }
 
     const user = users[0];
     const match = await bcrypt.compare(password, user.PASSWORD);
-
     if (!match) {
       return res.status(401).json({
         status: false,
+        code: "INVALID_CREDENTIALS",
         message: "Invalid email or password",
       });
     }
 
-    // Make sure COMPANY_ID is in the JWT "session"
     const payload = {
       USER_ID: user.USER_ID,
       EMAIL: user.EMAIL,
       FIRST_NAME: user.FIRST_NAME,
       LAST_NAME: user.LAST_NAME,
       COMPANY_ID: user.COMPANY_ID,
-      
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    const accessToken = signAccessToken(payload);
+
+    // Hard session max: 8 hours
+    const sessionMaxHours = Number(process.env.SESSION_MAX_HOURS || 8);
+    const sessionExpiresAt = hoursFromNow(sessionMaxHours);
+
+    // Refresh token cookie max (can be long), but session still enforced by SESSION_EXPIRES_AT
+    const refreshDays = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 30);
+    const refreshExpiresAt = daysFromNow(refreshDays);
+
+    const refreshToken = generateRefreshToken();
+    const refreshHash = sha256Hex(refreshToken);
+
+    await storeRefreshTokenRow({
+      companyId: user.COMPANY_ID,
+      userId: user.USER_ID,
+      tokenHash: refreshHash,
+      expiresAt: refreshExpiresAt,
+      sessionExpiresAt,
     });
 
-    // Also keep it in req.session if you use express-session
-    if (req.session) {
-      req.session.COMPANY_ID = user.COMPANY_ID;
-    }
+    res.cookie("refreshToken", refreshToken, getCookieOptions(refreshExpiresAt));
 
-    const responseBody = {
-      // Travco - COE-style user
+    if (req.session) req.session.COMPANY_ID = user.COMPANY_ID;
+
+    return res.json({
       uid: user.USER_ID,
       email: user.EMAIL,
-      //role: user.ROLE || "user",
-
       FIRST_NAME: user.FIRST_NAME,
       LAST_NAME: user.LAST_NAME,
       companyId: user.COMPANY_ID,
-      accessToken: token,
-
+      accessToken,
       username: user.EMAIL,
       status: true,
       message: "Login successful",
-    };
-
-    return res.json(responseBody);
+      // Optional info for UI/debug
+      sessionExpiresAt: sessionExpiresAt.toISOString(),
+    });
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({
@@ -172,6 +250,156 @@ async function login(req, res) {
   }
 }
 
+// POST /api/auth/refresh
+async function refresh(req, res) {
+  try {
+    const rawRefresh = req.cookies?.refreshToken;
+    if (!rawRefresh) {
+      return res.status(401).json({
+        success: false,
+        code: "REFRESH_TOKEN_MISSING",
+        message: "Refresh token missing",
+      });
+    }
+
+    const tokenHash = sha256Hex(rawRefresh);
+    const row = await findActiveRefreshRow({ tokenHash });
+
+    if (!row) {
+      res.clearCookie("refreshToken", { path: "/api/auth" });
+      return res.status(401).json({
+        success: false,
+        code: "REFRESH_TOKEN_INVALID",
+        message: "Invalid refresh token",
+      });
+    }
+
+    const now = new Date();
+    const refreshExpiresAt = new Date(row.EXPIRES_AT);
+    const sessionExpiresAt = new Date(row.SESSION_EXPIRES_AT);
+
+    // Enforce hard logout after 8 hours
+    if (now >= sessionExpiresAt) {
+      await revokeRefreshTokenRow({ companyId: row.COMPANY_ID || null, tokenHash });
+      res.clearCookie("refreshToken", { path: "/api/auth" });
+
+      return res.status(401).json({
+        success: false,
+        code: "SESSION_EXPIRED",
+        message: "Session expired. Please login again.",
+      });
+    }
+
+    // Refresh token itself expired
+    if (now >= refreshExpiresAt) {
+      await revokeRefreshTokenRow({ companyId: row.COMPANY_ID || null, tokenHash });
+      res.clearCookie("refreshToken", { path: "/api/auth" });
+
+      return res.status(401).json({
+        success: false,
+        code: "REFRESH_TOKEN_EXPIRED",
+        message: "Refresh token expired. Please login again.",
+      });
+    }
+
+    // Rotate: revoke old token
+    await revokeRefreshTokenRow({ companyId: row.COMPANY_ID || null, tokenHash });
+
+    // Issue new refresh token with SAME sessionExpiresAt (hard cap)
+    const newRefreshToken = generateRefreshToken();
+    const newHash = sha256Hex(newRefreshToken);
+
+    // Keep refresh expiry window long, but still limited by session expiry
+    const refreshDays = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 30);
+    const newRefreshExpiresAt = daysFromNow(refreshDays);
+
+    await storeRefreshTokenRow({
+      companyId: row.COMPANY_ID || null,
+      userId: row.USER_ID,
+      tokenHash: newHash,
+      expiresAt: newRefreshExpiresAt,
+      sessionExpiresAt,
+    });
+
+    res.cookie("refreshToken", newRefreshToken, getCookieOptions(newRefreshExpiresAt));
+
+    // Create new access token
+    const payload = {
+      USER_ID: row.USER_ID,
+      EMAIL: row.EMAIL || undefined, // if your table doesn't have EMAIL, ignore
+      FIRST_NAME: row.FIRST_NAME || undefined,
+      LAST_NAME: row.LAST_NAME || undefined,
+      COMPANY_ID: row.COMPANY_ID,
+    };
+
+    // Better: fetch user to ensure still active and get names/email
+    const users = await dbService.find(
+      {
+        table: USERS_TABLE,
+        where: { USER_ID: row.USER_ID, ACTIVE_STATUS: 1 },
+        limit: 1,
+      },
+      row.COMPANY_ID || null
+    );
+
+    if (!users.length) {
+      res.clearCookie("refreshToken", { path: "/api/auth" });
+      return res.status(401).json({
+        success: false,
+        code: "USER_NOT_FOUND",
+        message: "User not found or inactive",
+      });
+    }
+
+    const u = users[0];
+    const accessToken = signAccessToken({
+      USER_ID: u.USER_ID,
+      EMAIL: u.EMAIL,
+      FIRST_NAME: u.FIRST_NAME,
+      LAST_NAME: u.LAST_NAME,
+      COMPANY_ID: u.COMPANY_ID,
+    });
+
+    return res.json({
+      success: true,
+      accessToken,
+      sessionExpiresAt: sessionExpiresAt.toISOString(),
+    });
+  } catch (err) {
+    console.error("Refresh error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+}
+
+// POST /api/auth/logout
+async function logout(req, res) {
+  try {
+    const rawRefresh = req.cookies?.refreshToken;
+    if (rawRefresh) {
+      const tokenHash = sha256Hex(rawRefresh);
+      const row = await findActiveRefreshRow({ tokenHash });
+      if (row) {
+        await revokeRefreshTokenRow({ companyId: row.COMPANY_ID || null, tokenHash });
+      }
+    }
+
+    res.clearCookie("refreshToken", { path: "/api/auth" });
+
+    return res.json({ success: true, message: "Logged out" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
+// ---- The rest of your existing functions should remain as-is ----
+// getMe, changePasswordWhenLogin, requestPasswordResetByEmail, resetPasswordUsingToken, updateProfile...
+// Keep them from your current file.
+// GET /api/auth/me
+// assumes authMiddleware sets req.user from JWT (including COMPANY_ID)
 // GET /api/auth/me
 // assumes authMiddleware sets req.user from JWT (including COMPANY_ID)
 async function getMe(req, res) {
@@ -241,8 +469,6 @@ async function getMe(req, res) {
   }
 }
 
-// POST /api/auth/change-password
-// BODY (UPPERCASE): { "CURRENT_PASSWORD": "...", "NEW_PASSWORD": "..." }
 async function changePasswordWhenLogin(req, res) {
   try {
     const { CURRENT_PASSWORD, NEW_PASSWORD } = req.body;
@@ -503,9 +729,13 @@ async function updateProfile(req, res) {
 module.exports = {
   register,
   login,
+  refresh,
+  logout,
+
+  // existing functions already defined ABOVE in THIS file
   getMe,
-  updateProfile,
   changePasswordWhenLogin,
   requestPasswordResetByEmail,
   resetPasswordUsingToken,
+  updateProfile,
 };

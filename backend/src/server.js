@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 const authRoutes = require("./modules/auth/auth.routes");
 const hrRoutes = require("./modules/hr/hr.routes");
@@ -13,10 +14,16 @@ const hotelsRoutes = require("./modules/hotels/hotels.routes");
 const clientsRoutes = require("./modules/clients/clients.routes");
 const guidesRoutes = require("./modules/guides/guides.routes");
 const transportationRoutes = require("./modules/transportation/transportation.routes");
+const placesRoutes = require("./modules/places/places.routes");
 
 const app = express();
-
-app.use(cors());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"], // adjust to your frontend URL
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use("/api/access", accessRoutes);
 
@@ -38,6 +45,7 @@ app.use("/api/access", accessRoutes);
 app.use("/api/clients", clientsRoutes);
 app.use("/api/guides", guidesRoutes);
 app.use("/api/transportation", transportationRoutes);
+app.use("/api/places", placesRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });

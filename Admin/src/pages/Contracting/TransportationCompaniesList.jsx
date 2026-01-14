@@ -8,6 +8,10 @@ import {
   Spinner,
   Badge,
   Button,
+  Row,
+  Col,
+  Input,
+  Label,
 } from "reactstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
@@ -27,7 +31,6 @@ const selector = createSelector(
     companiesError: s.companiesError || null,
   })
 );
-
 
 const TransportationCompaniesListInner = () => {
   document.title = "Transportation Companies | COE";
@@ -113,36 +116,41 @@ const TransportationCompaniesListInner = () => {
 
           <Card>
             <CardBody>
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <div className="d-flex align-items-center gap-2">
-                  <label className="mb-0 text-muted">Status:</label>
-                  <select
-                    className="form-select form-select-sm"
-                    style={{ width: 180 }}
+              <Row className="align-items-end mb-3">
+                <Col md={6}>
+                  <Label className="form-label">Filter by Status</Label>
+                  <Input
+                    type="select"
                     value={activeStatus}
                     onChange={(e) => setActiveStatus(e.target.value)}
                   >
                     <option value="">All</option>
                     <option value="1">Active</option>
                     <option value="0">Inactive</option>
-                  </select>
-                </div>
+                  </Input>
+                </Col>
 
-                <Button
-                  color="primary"
-                  onClick={() =>
-                    navigate("/contracting/transportation/companies/create")
-                  }
-                >
-                  <i className="bx bx-plus me-1" />
-                  Add Company
-                </Button>
-              </div>
+                <Col md={6} className="text-md-end mt-3 mt-md-0">
+                  <Button
+                    color="primary"
+                    onClick={() =>
+                      navigate("/contracting/transportation/companies/create")
+                    }
+                  >
+                    <i className="bx bx-plus me-1" />
+                    Add Company
+                  </Button>
+                </Col>
+              </Row>
 
-              {companiesError && <Alert color="danger">{companiesError}</Alert>}
+              {companiesError && (
+                <Alert color="danger" className="mb-3">
+                  {companiesError}
+                </Alert>
+              )}
 
               {loadingCompanies ? (
-                <div className="text-center my-4">
+                <div className="text-center my-3">
                   <Spinner size="sm" className="me-2" />
                   Loading companies...
                 </div>
@@ -150,11 +158,10 @@ const TransportationCompaniesListInner = () => {
                 <TableContainer
                   columns={columns}
                   data={companies || []}
-                  isGlobalFilter={true}
-                  isPagination={true}
-                  SearchPlaceholder="Search..."
-                  pagination="pagination"
-                  paginationWrapper="pagination-wrapper"
+                  isGlobalFilter
+                  isAddOptions={false}
+                  customPageSize={10}
+                  className="custom-header-css"
                 />
               )}
             </CardBody>

@@ -24,6 +24,9 @@ import hotels from "./hotels/reducer";
 import Clients from "./clients/reducer";
 import Guides from "./guides/reducer";
 import Transportation from "./transportation/reducer";
+import Places from "./places/reducer";
+import PlaceEntranceFees from "./PlaceEntranceFees/reducer";
+
 
 
 //E-commerce
@@ -103,6 +106,9 @@ const rootReducer = combineReducers({
   Clients,
   Guides,
   Transportation,
+  Places,
+  PlaceEntranceFees,
+
 });
 
 export default rootReducer;

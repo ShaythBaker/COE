@@ -177,3 +177,68 @@ export const deleteTransportationVehicleFail = (error) => ({
 export const clearTransportationMessages = () => ({
   type: t.CLEAR_TRANSPORTATION_MESSAGES,
 });
+
+
+//////// Get fees
+export const getTransportationCompanyFees = (transportationCompanyId, activeStatus) => ({
+  type: t.GET_TRANSPORTATION_COMPANY_FEES,
+  payload: { transportationCompanyId, activeStatus },
+});
+
+export const getTransportationCompanyFeesSuccess = (fees) => ({
+  type: t.GET_TRANSPORTATION_COMPANY_FEES_SUCCESS,
+  payload: fees,
+});
+
+export const getTransportationCompanyFeesFail = (error) => ({
+  type: t.GET_TRANSPORTATION_COMPANY_FEES_FAIL,
+  payload: error,
+});
+
+// Create fee
+export const createTransportationCompanyFee = (transportationCompanyId, data, activeStatusToReload) => ({
+  type: t.CREATE_TRANSPORTATION_COMPANY_FEE,
+  payload: { transportationCompanyId, data, activeStatusToReload },
+});
+
+export const createTransportationCompanyFeeSuccess = (resp) => ({
+  type: t.CREATE_TRANSPORTATION_COMPANY_FEE_SUCCESS,
+  payload: resp,
+});
+
+export const createTransportationCompanyFeeFail = (error) => ({
+  type: t.CREATE_TRANSPORTATION_COMPANY_FEE_FAIL,
+  payload: error,
+});
+
+// Update fee
+export const updateTransportationFee = (feeId, data, transportationCompanyId, activeStatusToReload) => ({
+  type: t.UPDATE_TRANSPORTATION_FEE,
+  payload: { feeId, data, transportationCompanyId, activeStatusToReload },
+});
+
+export const updateTransportationFeeSuccess = (resp) => ({
+  type: t.UPDATE_TRANSPORTATION_FEE_SUCCESS,
+  payload: resp,
+});
+
+export const updateTransportationFeeFail = (error) => ({
+  type: t.UPDATE_TRANSPORTATION_FEE_FAIL,
+  payload: error,
+});
+
+// Delete fee
+export const deleteTransportationFee = (feeId, transportationCompanyId, activeStatusToReload) => ({
+  type: t.DELETE_TRANSPORTATION_FEE,
+  payload: { feeId, transportationCompanyId, activeStatusToReload },
+});
+
+export const deleteTransportationFeeSuccess = (resp) => ({
+  type: t.DELETE_TRANSPORTATION_FEE_SUCCESS,
+  payload: resp,
+});
+
+export const deleteTransportationFeeFail = (error) => ({
+  type: t.DELETE_TRANSPORTATION_FEE_FAIL,
+  payload: error,
+});

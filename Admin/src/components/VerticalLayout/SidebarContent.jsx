@@ -283,7 +283,10 @@ const SidebarContent = (props) => {
                       {props.t("Transportation")}
                     </Link>
                   </li>
-                  
+                  <li>
+                    <Link to="/contracting/places">{props.t("Places")}</Link>
+                  </li>
+
                   {/* later we can add more contracting items here */}
                 </ul>
               </li>

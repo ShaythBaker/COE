@@ -1,3 +1,4 @@
+// middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
 
 function authMiddleware(req, res, next) {
@@ -11,7 +12,16 @@ function authMiddleware(req, res, next) {
     });
   }
 
-  const token = authHeader.split(" ")[1];
+  const parts = String(authHeader).split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return res.status(401).json({
+      success: false,
+      code: "AUTH_HEADER_INVALID",
+      message: "Authorization header must be: Bearer <token>",
+    });
+  }
+
+  const token = parts[1];
   if (!token) {
     return res.status(401).json({
       success: false,

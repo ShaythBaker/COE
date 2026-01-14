@@ -4,7 +4,7 @@ const dbService = require("../../core/dbService");
 const TRANSPORTATION_COMPANIES_TABLE = "COE_TBL_TRANSPORTATION";
 const TRANSPORTATION_CONTRACTS_TABLE = "COE_TBL_TRANSPORTATION_CONTRACTS";
 const TRANSPORTATION_FLEET_TABLE = "COE_TBL_TRANSPORTATION_FLEET";
-
+const TRANSPORTATION_FEES_TABLE = "COE_TBL_TRANSPORTATION_FEES";
 // Helper: get COMPANY_ID from backend (JWT user or session)
 function getCompanyId(req) {
   if (req.user && req.user.COMPANY_ID) {
@@ -1242,6 +1242,460 @@ async function deleteVehicle(req, res) {
   }
 }
 
+/**
+ * ========= TRANSPORTATION FEES =========
+ *
+ * Columns (COE_TBL_TRANSPORTATION_FEES):
+ *  TRANSPORTATION_FEE_ID
+ *  TRANSPORTATION_FEE_COMPANY_ID
+ *  TRANSPORTATION_FEE_VECHLE_TYPE
+ *  TRANSPORTATION_FEE_TYPE
+ *  TRANSPORTATION_FEE_AMOUNT
+ *  COMPANY_ID
+ *  CREATED_ON
+ *  CREATED_BY
+ *  UPDATED_ON
+ *  UPDATED_BY
+ *  ACTIVE_STATSUS
+ */
+
+/**
+ * GET /api/transportation/companies/:TRANSPORTATION_COMPANY_ID/fees
+ * Optional query: ?ACTIVE_STATSUS=1
+ */
+async function listFeesForCompany(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const TRANSPORTATION_COMPANY_ID = parseInt(
+      req.params.TRANSPORTATION_COMPANY_ID,
+      10
+    );
+
+    if (
+      !TRANSPORTATION_COMPANY_ID ||
+      Number.isNaN(TRANSPORTATION_COMPANY_ID)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid TRANSPORTATION_COMPANY_ID" });
+    }
+
+    // Ensure company exists for this tenant
+    const companies = await dbService.find(
+      {
+        table: TRANSPORTATION_COMPANIES_TABLE,
+        where: { TRANSPORTATION_COMPANY_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!companies.length) {
+      return res
+        .status(404)
+        .json({ message: "Transportation company not found" });
+    }
+
+    const { ACTIVE_STATSUS } = req.query;
+    const where = {
+      TRANSPORTATION_FEE_COMPANY_ID: TRANSPORTATION_COMPANY_ID,
+    };
+    if (ACTIVE_STATSUS !== undefined) {
+      where.ACTIVE_STATSUS = Number(ACTIVE_STATSUS);
+    }
+
+    const rows = await dbService.find(
+      {
+        table: TRANSPORTATION_FEES_TABLE,
+        where,
+        fields: [
+          "TRANSPORTATION_FEE_ID",
+          "TRANSPORTATION_FEE_COMPANY_ID",
+          "TRANSPORTATION_FEE_VECHLE_TYPE",
+          "TRANSPORTATION_FEE_TYPE",
+          "TRANSPORTATION_FEE_AMOUNT",
+          "COMPANY_ID",
+          "CREATED_ON",
+          "CREATED_BY",
+          "UPDATED_ON",
+          "UPDATED_BY",
+          "ACTIVE_STATSUS",
+        ],
+        orderBy: "TRANSPORTATION_FEE_VECHLE_TYPE ASC",
+      },
+      companyId
+    );
+
+    return res.json(rows);
+  } catch (err) {
+    console.error("listFeesForCompany error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
+ * POST /api/transportation/companies/:TRANSPORTATION_COMPANY_ID/fees
+ * BODY:
+ * {
+ *   "TRANSPORTATION_FEE_VECHLE_TYPE": "...",
+ *   "TRANSPORTATION_FEE_TYPE": "...",         // required
+ *   "TRANSPORTATION_FEE_AMOUNT": 123.45,      // required
+ *   "ACTIVE_STATSUS": 0/1
+ * }
+ */
+async function createFeeForCompany(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const userFromToken = req.user;
+    if (!userFromToken || !userFromToken.USER_ID) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const TRANSPORTATION_COMPANY_ID = parseInt(
+      req.params.TRANSPORTATION_COMPANY_ID,
+      10
+    );
+
+    if (
+      !TRANSPORTATION_COMPANY_ID ||
+      Number.isNaN(TRANSPORTATION_COMPANY_ID)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid TRANSPORTATION_COMPANY_ID" });
+    }
+
+    const companies = await dbService.find(
+      {
+        table: TRANSPORTATION_COMPANIES_TABLE,
+        where: { TRANSPORTATION_COMPANY_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!companies.length) {
+      return res
+        .status(404)
+        .json({ message: "Transportation company not found" });
+    }
+
+    const {
+      TRANSPORTATION_FEE_VECHLE_TYPE,
+      TRANSPORTATION_FEE_TYPE,
+      TRANSPORTATION_FEE_AMOUNT,
+      ACTIVE_STATSUS,
+    } = req.body;
+
+    if (!TRANSPORTATION_FEE_TYPE) {
+      return res
+        .status(400)
+        .json({ message: "TRANSPORTATION_FEE_TYPE is required" });
+    }
+
+    if (
+      TRANSPORTATION_FEE_AMOUNT === undefined ||
+      TRANSPORTATION_FEE_AMOUNT === null ||
+      Number.isNaN(Number(TRANSPORTATION_FEE_AMOUNT))
+    ) {
+      return res.status(400).json({
+        message: "TRANSPORTATION_FEE_AMOUNT must be a numeric value",
+      });
+    }
+
+    const amount = Number(TRANSPORTATION_FEE_AMOUNT);
+    const now = new Date();
+
+    const result = await dbService.insert(
+      TRANSPORTATION_FEES_TABLE,
+      {
+        TRANSPORTATION_FEE_COMPANY_ID: TRANSPORTATION_COMPANY_ID,
+        TRANSPORTATION_FEE_VECHLE_TYPE:
+          TRANSPORTATION_FEE_VECHLE_TYPE || null,
+        TRANSPORTATION_FEE_TYPE: TRANSPORTATION_FEE_TYPE,
+        TRANSPORTATION_FEE_AMOUNT: amount,
+        ACTIVE_STATSUS: ACTIVE_STATSUS ?? 1,
+        CREATED_ON: now,
+        CREATED_BY: userFromToken.USER_ID,
+      },
+      companyId
+    );
+
+    return res.status(201).json({
+      message: "Transportation fee created",
+      TRANSPORTATION_FEE_ID: result.insertId,
+    });
+  } catch (err) {
+    console.error("createFeeForCompany error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
+ * GET /api/transportation/fees/:TRANSPORTATION_FEE_ID
+ */
+async function getFeeById(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const TRANSPORTATION_FEE_ID = parseInt(
+      req.params.TRANSPORTATION_FEE_ID,
+      10
+    );
+
+    if (!TRANSPORTATION_FEE_ID || Number.isNaN(TRANSPORTATION_FEE_ID)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid TRANSPORTATION_FEE_ID" });
+    }
+
+    const rows = await dbService.find(
+      {
+        table: TRANSPORTATION_FEES_TABLE,
+        where: { TRANSPORTATION_FEE_ID },
+        fields: [
+          "TRANSPORTATION_FEE_ID",
+          "TRANSPORTATION_FEE_COMPANY_ID",
+          "TRANSPORTATION_FEE_VECHLE_TYPE",
+          "TRANSPORTATION_FEE_TYPE",
+          "TRANSPORTATION_FEE_AMOUNT",
+          "COMPANY_ID",
+          "CREATED_ON",
+          "CREATED_BY",
+          "UPDATED_ON",
+          "UPDATED_BY",
+          "ACTIVE_STATSUS",
+        ],
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!rows.length) {
+      return res
+        .status(404)
+        .json({ message: "Transportation fee not found" });
+    }
+
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error("getFeeById error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
+ * PUT /api/transportation/fees/:TRANSPORTATION_FEE_ID
+ * BODY: any subset of the fee columns
+ */
+async function updateFee(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const userFromToken = req.user;
+    if (!userFromToken || !userFromToken.USER_ID) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const TRANSPORTATION_FEE_ID = parseInt(
+      req.params.TRANSPORTATION_FEE_ID,
+      10
+    );
+
+    if (!TRANSPORTATION_FEE_ID || Number.isNaN(TRANSPORTATION_FEE_ID)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid TRANSPORTATION_FEE_ID" });
+    }
+
+    const existing = await dbService.find(
+      {
+        table: TRANSPORTATION_FEES_TABLE,
+        where: { TRANSPORTATION_FEE_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!existing.length) {
+      return res
+        .status(404)
+        .json({ message: "Transportation fee not found" });
+    }
+
+    const {
+      TRANSPORTATION_FEE_COMPANY_ID,
+      TRANSPORTATION_FEE_VECHLE_TYPE,
+      TRANSPORTATION_FEE_TYPE,
+      TRANSPORTATION_FEE_AMOUNT,
+      ACTIVE_STATSUS,
+    } = req.body;
+
+    const updateData = {};
+
+    if (TRANSPORTATION_FEE_COMPANY_ID !== undefined) {
+      updateData.TRANSPORTATION_FEE_COMPANY_ID =
+        TRANSPORTATION_FEE_COMPANY_ID;
+    }
+
+    if (TRANSPORTATION_FEE_VECHLE_TYPE !== undefined) {
+      updateData.TRANSPORTATION_FEE_VECHLE_TYPE =
+        TRANSPORTATION_FEE_VECHLE_TYPE;
+    }
+
+    if (TRANSPORTATION_FEE_TYPE !== undefined) {
+      updateData.TRANSPORTATION_FEE_TYPE = TRANSPORTATION_FEE_TYPE;
+    }
+
+    if (TRANSPORTATION_FEE_AMOUNT !== undefined) {
+      if (
+        TRANSPORTATION_FEE_AMOUNT === null ||
+        Number.isNaN(Number(TRANSPORTATION_FEE_AMOUNT))
+      ) {
+        return res.status(400).json({
+          message: "TRANSPORTATION_FEE_AMOUNT must be a numeric value",
+        });
+      }
+      updateData.TRANSPORTATION_FEE_AMOUNT = Number(
+        TRANSPORTATION_FEE_AMOUNT
+      );
+    }
+
+    if (ACTIVE_STATSUS !== undefined) {
+      updateData.ACTIVE_STATSUS = ACTIVE_STATSUS;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      updateData.UPDATED_BY = userFromToken.USER_ID;
+      updateData.UPDATED_ON = new Date();
+
+      await dbService.update(
+        TRANSPORTATION_FEES_TABLE,
+        updateData,
+        { TRANSPORTATION_FEE_ID },
+        companyId
+      );
+    }
+
+    const updated = await dbService.find(
+      {
+        table: TRANSPORTATION_FEES_TABLE,
+        where: { TRANSPORTATION_FEE_ID },
+        fields: [
+          "TRANSPORTATION_FEE_ID",
+          "TRANSPORTATION_FEE_COMPANY_ID",
+          "TRANSPORTATION_FEE_VECHLE_TYPE",
+          "TRANSPORTATION_FEE_TYPE",
+          "TRANSPORTATION_FEE_AMOUNT",
+          "COMPANY_ID",
+          "CREATED_ON",
+          "CREATED_BY",
+          "UPDATED_ON",
+          "UPDATED_BY",
+          "ACTIVE_STATSUS",
+        ],
+        limit: 1,
+      },
+      companyId
+    );
+
+    return res.json({
+      message: "Transportation fee updated",
+      FEE: updated[0],
+    });
+  } catch (err) {
+    console.error("updateFee error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
+ * DELETE /api/transportation/fees/:TRANSPORTATION_FEE_ID
+ * Soft delete => ACTIVE_STATSUS = 0
+ */
+async function deleteFee(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const userFromToken = req.user;
+    if (!userFromToken || !userFromToken.USER_ID) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const TRANSPORTATION_FEE_ID = parseInt(
+      req.params.TRANSPORTATION_FEE_ID,
+      10
+    );
+
+    if (!TRANSPORTATION_FEE_ID || Number.isNaN(TRANSPORTATION_FEE_ID)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid TRANSPORTATION_FEE_ID" });
+    }
+
+    const existing = await dbService.find(
+      {
+        table: TRANSPORTATION_FEES_TABLE,
+        where: { TRANSPORTATION_FEE_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!existing.length) {
+      return res
+        .status(404)
+        .json({ message: "Transportation fee not found" });
+    }
+
+    const now = new Date();
+
+    await dbService.update(
+      TRANSPORTATION_FEES_TABLE,
+      {
+        ACTIVE_STATSUS: 0,
+        UPDATED_BY: userFromToken.USER_ID,
+        UPDATED_ON: now,
+      },
+      { TRANSPORTATION_FEE_ID },
+      companyId
+    );
+
+    return res.json({ message: "Transportation fee deactivated" });
+  } catch (err) {
+    console.error("deleteFee error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+
 module.exports = {
   // Companies
   listTransportationCompanies,
@@ -1263,4 +1717,11 @@ module.exports = {
   getVehicleById,
   updateVehicle,
   deleteVehicle,
+
+  // Fees 👇
+  listFeesForCompany,
+  createFeeForCompany,
+  getFeeById,
+  updateFee,
+  deleteFee,
 };

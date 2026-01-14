@@ -1277,9 +1277,17 @@ async function createHotelSeasonRate(req, res) {
         .json({ message: "Cannot add rates to an expired season" });
     }
 
-    const { RATE_FOR_ID, RATE_START_DATE, RATE_END_DATE, RATE_AMOUNT } =
-      req.body;
+    const {
+      RATE_FOR_ID,
+      RATE_START_DATE,
+      RATE_END_DATE,
+      RATE_AMOUNT,
+      RATE_HALF_BOARD_AMOUNT,
+      RATE_FULL_BOARD_AMOUNT,
+      RATE_SINGLE_SPPLIMENT_AMOUNT,
+    } = req.body;
 
+    // Required main amount
     if (RATE_AMOUNT === undefined || RATE_AMOUNT === null) {
       return res.status(400).json({ message: "RATE_AMOUNT is required" });
     }
@@ -1288,6 +1296,39 @@ async function createHotelSeasonRate(req, res) {
       return res
         .status(400)
         .json({ message: "RATE_AMOUNT must be a valid number" });
+    }
+
+    // Optional numeric helpers
+    const parseOptionalAmount = (raw, fieldName) => {
+      if (raw === undefined || raw === null || raw === "") {
+        return null;
+      }
+      const num = Number(raw);
+      if (Number.isNaN(num)) {
+        throw new Error(`${fieldName} must be a valid number`);
+      }
+      return num;
+    };
+
+    let halfBoardAmount = null;
+    let fullBoardAmount = null;
+    let singleSupplementAmount = null;
+
+    try {
+      halfBoardAmount = parseOptionalAmount(
+        RATE_HALF_BOARD_AMOUNT,
+        "RATE_HALF_BOARD_AMOUNT"
+      );
+      fullBoardAmount = parseOptionalAmount(
+        RATE_FULL_BOARD_AMOUNT,
+        "RATE_FULL_BOARD_AMOUNT"
+      );
+      singleSupplementAmount = parseOptionalAmount(
+        RATE_SINGLE_SPPLIMENT_AMOUNT,
+        "RATE_SINGLE_SPPLIMENT_AMOUNT"
+      );
+    } catch (validationErr) {
+      return res.status(400).json({ message: validationErr.message });
     }
 
     // Optional RATE_FOR_ID
@@ -1401,6 +1442,12 @@ async function createHotelSeasonRate(req, res) {
         RATE_START_DATE: startDate, // never null now
         RATE_END_DATE: endDate, // never null now
         RATE_AMOUNT: amountNumber,
+
+        // new optional fields
+        RATE_HALF_BOARD_AMOUNT: halfBoardAmount,
+        RATE_FULL_BOARD_AMOUNT: fullBoardAmount,
+        RATE_SINGLE_SPPLIMENT_AMOUNT: singleSupplementAmount,
+
         CREATED_ON: now,
         CREATED_BY: userFromToken.USER_ID,
         CHANGED_ON: now,
@@ -1472,8 +1519,16 @@ async function updateHotelSeasonRate(req, res) {
       return res.status(404).json({ message: "Rate not found" });
 
     const existing = existingRates[0];
-    const { RATE_FOR_ID, RATE_START_DATE, RATE_END_DATE, RATE_AMOUNT } =
-      req.body;
+
+    const {
+      RATE_FOR_ID,
+      RATE_START_DATE,
+      RATE_END_DATE,
+      RATE_AMOUNT,
+      RATE_HALF_BOARD_AMOUNT,
+      RATE_FULL_BOARD_AMOUNT,
+      RATE_SINGLE_SPPLIMENT_AMOUNT,
+    } = req.body;
 
     const updateData = {};
 
@@ -1485,6 +1540,40 @@ async function updateHotelSeasonRate(req, res) {
           .status(400)
           .json({ message: "RATE_AMOUNT must be a valid number" });
       updateData.RATE_AMOUNT = amountNumber;
+    }
+
+    // Helper for optional numeric amounts on update
+    const setOptionalAmount = (raw, fieldName, key) => {
+      if (raw === undefined) return; // not provided -> do not change
+      if (raw === null || raw === "") {
+        updateData[key] = null; // explicit clear
+        return;
+      }
+      const num = Number(raw);
+      if (Number.isNaN(num)) {
+        throw new Error(`${fieldName} must be a valid number`);
+      }
+      updateData[key] = num;
+    };
+
+    try {
+      setOptionalAmount(
+        RATE_HALF_BOARD_AMOUNT,
+        "RATE_HALF_BOARD_AMOUNT",
+        "RATE_HALF_BOARD_AMOUNT"
+      );
+      setOptionalAmount(
+        RATE_FULL_BOARD_AMOUNT,
+        "RATE_FULL_BOARD_AMOUNT",
+        "RATE_FULL_BOARD_AMOUNT"
+      );
+      setOptionalAmount(
+        RATE_SINGLE_SPPLIMENT_AMOUNT,
+        "RATE_SINGLE_SPPLIMENT_AMOUNT",
+        "RATE_SINGLE_SPPLIMENT_AMOUNT"
+      );
+    } catch (validationErr) {
+      return res.status(400).json({ message: validationErr.message });
     }
 
     // RATE_FOR_ID
@@ -1604,6 +1693,9 @@ async function updateHotelSeasonRate(req, res) {
         r.RATE_START_DATE,
         r.RATE_END_DATE,
         r.RATE_AMOUNT,
+        r.RATE_HALF_BOARD_AMOUNT,
+        r.RATE_FULL_BOARD_AMOUNT,
+        r.RATE_SINGLE_SPPLIMENT_AMOUNT,
         r.COMPANY_ID,
         r.CREATED_ON,
         r.CREATED_BY,
@@ -1792,6 +1884,9 @@ async function getHotelSeasonsWithRates(req, res) {
           r.RATE_START_DATE,
           r.RATE_END_DATE,
           r.RATE_AMOUNT,
+          r.RATE_HALF_BOARD_AMOUNT,
+          r.RATE_FULL_BOARD_AMOUNT,
+          r.RATE_SINGLE_SPPLIMENT_AMOUNT,
           r.COMPANY_ID,
           r.CREATED_ON,
           r.CREATED_BY,

@@ -104,7 +104,6 @@ export const CREATE_GUIDE = "/api/guides";
 export const UPDATE_GUIDE = "/api/guides"; // use with /:GUIDE_ID
 export const DELETE_GUIDE = "/api/guides"; // use with /:GUIDE_ID
 
-
 // ========================
 // TRANSPORTATION (CONTRACTING)
 // ========================
@@ -120,6 +119,29 @@ export const TRANSPORTATION_CONTRACTS = `${TRANSPORTATION_BASE}/contracts`; // /
 // Vehicles (nested + direct)
 export const TRANSPORTATION_COMPANY_VEHICLES = `${TRANSPORTATION_BASE}/companies`; // /:companyId/vehicles
 export const TRANSPORTATION_VEHICLES = `${TRANSPORTATION_BASE}/vehicles`; // /:vehicleId
+
+// Transportation Fees
+export const GET_TRANSPORTATION_COMPANY_FEES = "/api/transportation/companies"; // /:TRANSPORTATION_COMPANY_ID/fees?ACTIVE_STATSUS=
+export const GET_TRANSPORTATION_FEE_BY_ID = "/api/transportation/fees"; // /:TRANSPORTATION_FEE_ID
+export const UPDATE_TRANSPORTATION_FEE = "/api/transportation/fees"; // /:TRANSPORTATION_FEE_ID
+export const DELETE_TRANSPORTATION_FEE = "/api/transportation/fees"; // /:TRANSPORTATION_FEE_ID
+
+// ====================
+
+// ====================
+// PLACES
+// ====================
+export const PLACES = "/api/places";
+export const GET_PLACES = "/api/places";        // list (supports ?PLACE_AREA_ID=)
+export const GET_PLACE_BY_ID = "/api/places";   // use `${GET_PLACE_BY_ID}/${PLACE_ID}`
+
+// Dynamic list (company-wide filters via query params)
+export const PLACES_ENTRANCE_FEES_DYNAMIC = "/api/places/entrance-fees";
+
+// Place-scoped entrance fees
+// Use with: `${PLACES_BASE}/${placeId}/entrance-fees`
+export const PLACES_BASE = "/api/places";
+
 // ====================
 
 // ====================

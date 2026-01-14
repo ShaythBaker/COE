@@ -573,7 +573,111 @@ export const updateTransportationVehicleApi = (vehicleId, data) =>
 
 export const deleteTransportationVehicleApi = (vehicleId) =>
   del(`${url.TRANSPORTATION_VEHICLES}/${vehicleId}`);
+
+export const getTransportationCompanyFees = (transportationCompanyId, activeStatus) => {
+  const base = `${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`;
+
+  if (activeStatus === null || activeStatus === undefined || activeStatus === "") {
+    return get(base);
+  }
+
+  return get(`${base}?ACTIVE_STATSUS=${encodeURIComponent(activeStatus)}`);
+};
+
+// 2) Create fee for company
+export const createTransportationCompanyFee = (transportationCompanyId, data) =>
+  post(`${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`, data);
+
+// 3) Get fee by id
+export const getTransportationFeeById = (feeId) =>
+  get(`${url.GET_TRANSPORTATION_FEE_BY_ID}/${feeId}`);
+
+// 4) Update fee by id
+export const updateTransportationFee = (feeId, data) =>
+  put(`${url.UPDATE_TRANSPORTATION_FEE}/${feeId}`, data);
+
+// 5) Delete (deactivate) fee by id
+export const deleteTransportationFee = (feeId) =>
+  del(`${url.DELETE_TRANSPORTATION_FEE}/${feeId}`);
 // ====================
+
+//===================
+// PLACES
+//===================
+
+// PLACES (Contracting)
+
+// List places (optional query: PLACE_AREA_ID)
+export const getPlaces = (params = {}) => {
+  const qp = {};
+  if (params?.PLACE_AREA_ID !== undefined && params?.PLACE_AREA_ID !== null && params?.PLACE_AREA_ID !== "") {
+    qp.PLACE_AREA_ID = Number(params.PLACE_AREA_ID);
+  }
+  return get(url.GET_PLACES || url.PLACES, { params: qp });
+};
+
+export const getPlaceById = (placeId) =>
+  get(`${url.GET_PLACE_BY_ID || url.PLACES}/${placeId}`);
+
+export const createPlace = (data) =>
+  post(url.PLACES, data);
+
+export const updatePlace = (placeId, data) =>
+  put(`${url.PLACES}/${placeId}`, data);
+
+export const deletePlace = (placeId) =>
+  del(`${url.PLACES}/${placeId}`);
+
+// ====================
+// PLACES - ENTRANCE FEES APIs
+// ====================
+
+// A) Dynamic list (optional filters)
+export const getEntranceFeesDynamicApi = (params = {}) => {
+  const query = {};
+
+  if (
+    params.PLACE_ENTRANCE_FEE_PLACE_ID !== undefined &&
+    params.PLACE_ENTRANCE_FEE_PLACE_ID !== null &&
+    params.PLACE_ENTRANCE_FEE_PLACE_ID !== ""
+  ) {
+    query.PLACE_ENTRANCE_FEE_PLACE_ID = params.PLACE_ENTRANCE_FEE_PLACE_ID;
+  }
+
+  if (
+    params.PLACE_ENTRANCE_FEE_COUNTRY_ID !== undefined &&
+    params.PLACE_ENTRANCE_FEE_COUNTRY_ID !== null &&
+    params.PLACE_ENTRANCE_FEE_COUNTRY_ID !== ""
+  ) {
+    query.PLACE_ENTRANCE_FEE_COUNTRY_ID = params.PLACE_ENTRANCE_FEE_COUNTRY_ID;
+  }
+
+  return get(url.PLACES_ENTRANCE_FEES_DYNAMIC, { params: query });
+};
+
+// B) List all fees for a specific place
+export const getPlaceEntranceFeesApi = (placeId) =>
+  get(`${url.PLACES_BASE}/${placeId}/entrance-fees`);
+
+// C) Get single fee row
+export const getPlaceEntranceFeeByIdApi = (placeId, feeId) =>
+  get(`${url.PLACES_BASE}/${placeId}/entrance-fees/${feeId}`);
+
+// D) Create entrance fees (multi-country)
+export const createPlaceEntranceFeesApi = (placeId, data) =>
+  post(`${url.PLACES_BASE}/${placeId}/entrance-fees`, data);
+
+// E) Update single fee row
+export const updatePlaceEntranceFeeApi = (placeId, feeId, data) =>
+  put(`${url.PLACES_BASE}/${placeId}/entrance-fees/${feeId}`, data);
+
+// F) Delete single fee row
+export const deletePlaceEntranceFeeApi = (placeId, feeId) =>
+  del(`${url.PLACES_BASE}/${placeId}/entrance-fees/${feeId}`);
+
+
+// ====================
+
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);
