@@ -15,6 +15,8 @@ const clientsRoutes = require("./modules/clients/clients.routes");
 const guidesRoutes = require("./modules/guides/guides.routes");
 const transportationRoutes = require("./modules/transportation/transportation.routes");
 const placesRoutes = require("./modules/places/places.routes");
+const routesRoutes = require("./modules/routes/routes.routes");
+const qoutationsRoutes = require("./modules/qoutations/qoutations.routes");
 
 const app = express();
 app.use(cookieParser());
@@ -46,6 +48,8 @@ app.use("/api/clients", clientsRoutes);
 app.use("/api/guides", guidesRoutes);
 app.use("/api/transportation", transportationRoutes);
 app.use("/api/places", placesRoutes);
+app.use("/api/routes", routesRoutes);
+app.use("/api/qoutations", qoutationsRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
