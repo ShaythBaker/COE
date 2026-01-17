@@ -19,6 +19,37 @@ function getCompanyId(req) {
   return null;
 }
 
+// Normalize PLACES input into an array of place IDs (numbers)
+function normalizePlaceIds(places) {
+  if (!Array.isArray(places)) {
+    return [];
+  }
+
+  const ids = [];
+
+  for (const item of places) {
+    // Case 1: direct numeric ID
+    if (typeof item === "number") {
+      ids.push(item);
+      continue;
+    }
+
+    // Case 2: object with ORIGINAL_PLACE_ID
+    if (
+      item &&
+      typeof item === "object" &&
+      item.ORIGINAL_PLACE_ID !== undefined
+    ) {
+      const parsedId = parseInt(item.ORIGINAL_PLACE_ID, 10);
+      if (!Number.isNaN(parsedId)) {
+        ids.push(parsedId);
+      }
+    }
+  }
+
+  return ids;
+}
+
 /**
  * Internal helper:
  * Load routes (optionally single route) with:
@@ -161,23 +192,22 @@ async function fetchRoutesWithPlacesAndFees(companyId, options = {}) {
 
     for (const place of route.PLACES) {
       // If a country is selected and no fees found for this place → add a zero-fee row
-    if (
-  typeof countryId === "number" &&
-  (!place.ENTRANCE_FEES || place.ENTRANCE_FEES.length === 0)
-) {
-  place.ENTRANCE_FEES = [
-    {
-      PLACE_ENTRANCE_FEE_ID: null,
-      PLACE_ENTRANCE_FEE_AMOUNT: 0,
-      PLACE_ENTRANCE_FEE_COUNTRY_ID: countryId,
-      COUNTRY_NAME: null,
-      NO_ENTRANCE_FEE_FOUND: true,
-      MESSAGE:
-        "No entrance fee configured for this place for the selected country; using 0 as default.",
-    },
-  ];
-}
-
+      if (
+        typeof countryId === "number" &&
+        (!place.ENTRANCE_FEES || place.ENTRANCE_FEES.length === 0)
+      ) {
+        place.ENTRANCE_FEES = [
+          {
+            PLACE_ENTRANCE_FEE_ID: null,
+            PLACE_ENTRANCE_FEE_AMOUNT: 0,
+            PLACE_ENTRANCE_FEE_COUNTRY_ID: countryId,
+            COUNTRY_NAME: null,
+            NO_ENTRANCE_FEE_FOUND: true,
+            MESSAGE:
+              "No entrance fee configured for this place for the selected country; using 0 as default.",
+          },
+        ];
+      }
 
       // Sum all fees of this place into routeTotal
       if (place.ENTRANCE_FEES && place.ENTRANCE_FEES.length > 0) {

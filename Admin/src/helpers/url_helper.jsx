@@ -132,8 +132,8 @@ export const DELETE_TRANSPORTATION_FEE = "/api/transportation/fees"; // /:TRANSP
 // PLACES
 // ====================
 export const PLACES = "/api/places";
-export const GET_PLACES = "/api/places";        // list (supports ?PLACE_AREA_ID=)
-export const GET_PLACE_BY_ID = "/api/places";   // use `${GET_PLACE_BY_ID}/${PLACE_ID}`
+export const GET_PLACES = "/api/places"; // list (supports ?PLACE_AREA_ID=)
+export const GET_PLACE_BY_ID = "/api/places"; // use `${GET_PLACE_BY_ID}/${PLACE_ID}`
 
 // Dynamic list (company-wide filters via query params)
 export const PLACES_ENTRANCE_FEES_DYNAMIC = "/api/places/entrance-fees";
@@ -141,6 +141,16 @@ export const PLACES_ENTRANCE_FEES_DYNAMIC = "/api/places/entrance-fees";
 // Place-scoped entrance fees
 // Use with: `${PLACES_BASE}/${placeId}/entrance-fees`
 export const PLACES_BASE = "/api/places";
+
+// ====================
+
+// ====================
+// ROUTES
+// ====================
+
+// Routes (Trips)
+export const GET_ROUTES = "/api/routes"; // list + create
+export const GET_ROUTE_DETAIL = "/api/routes"; // + /:id
 
 // ====================
 

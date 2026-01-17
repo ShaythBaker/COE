@@ -75,6 +75,7 @@ import DashboardBlog from "./dashboard-blog/reducer";
 import DashboardJob from "./dashboard-jobs/reducer";
 
 import Permissions from "./permissions/reducer";
+import Routes from "./routes/reducer";
 
 const rootReducer = combineReducers({
   // public
@@ -108,7 +109,7 @@ const rootReducer = combineReducers({
   Transportation,
   Places,
   PlaceEntranceFees,
-
+Routes,
 });
 
 export default rootReducer;

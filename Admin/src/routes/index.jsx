@@ -49,6 +49,10 @@ import PlacesList from "../pages/Places/PlacesList";
 import PlaceCreate from "../pages/Places/PlaceCreate";
 import PlaceProfile from "../pages/Places/PlaceProfile";
 
+// ROUTSES(TRIPS)
+import RoutesList from "../pages/Routes/RoutesList";
+import RouteDetails from "../pages/Routes/RouteDetails";
+
 //QUICK ACTIONS
 
 import QuickActionsRequests from "../pages/QuickActions/Requests";
@@ -358,6 +362,24 @@ const authProtectedRoutes = [
       </RequireModule>
     ),
   },
+
+  {
+    path: "/contracting/routes",
+    component: (
+      <RequireModule moduleCode="ROUTES">
+        <RoutesList />
+      </RequireModule>
+    ),
+  },
+  {
+    path: "/contracting/routes/:routeId",
+    component: (
+      <RequireModule moduleCode="ROUTES">
+        <RouteDetails />
+      </RequireModule>
+    ),
+  },
+
   { path: "/contracting/places", component: <PlacesList /> },
   { path: "/contracting/places/create", component: <PlaceCreate /> },
   { path: "/contracting/places/:placeId", component: <PlaceProfile /> },

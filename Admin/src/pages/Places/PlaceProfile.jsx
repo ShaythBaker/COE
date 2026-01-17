@@ -28,7 +28,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Breadcrumb from "../../components/Common/Breadcrumb";
-import RequireModule from "../../components/auth/RequireModule";
+import RequireModule from "../../components/Auth/RequireModule";
 
 import {
   getPlaceById,
@@ -223,6 +223,8 @@ const PlaceProfileInner = () => {
   const [countries, setCountries] = useState([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
 
+  const [selectedCountryToAdd, setSelectedCountryToAdd] = useState("");
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -341,16 +343,6 @@ const PlaceProfileInner = () => {
   // Put these states near your other useState hooks in PlaceProfileInner:
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [countriesErr, setCountriesErr] = useState("");
-
-  // helper toggle
-  const toggleCountry = (id) => {
-    setSelectedCountries((prev) => {
-      const exists = prev.includes(id);
-      const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
-      return next;
-    });
-    setCountriesErr("");
-  };
 
   // ✅ Load entrance fees for this place (redux)
   useEffect(() => {
@@ -1143,92 +1135,99 @@ const PlaceProfileInner = () => {
                                 Loading countries...
                               </div>
                             ) : (
-                              <div
-                                // ✅ force this block to be clickable even if something overlays
-                                style={{
-                                  border: "1px solid #e9ecef",
-                                  borderRadius: 6,
-                                  padding: 12,
-                                  maxHeight: 260,
-                                  overflowY: "auto",
-                                  position: "relative",
-                                  zIndex: 2,
-                                  pointerEvents: "auto",
-                                }}
-                              >
-                                {(countries || []).map((c) => {
-                                  const id = Number(c.LIST_ITEM_ID);
-                                  const name = c.ITEM_NAME;
-
-                                  const checked =
-                                    selectedCountries.includes(id);
-
-                                  return (
-                                    <div
-                                      key={id}
-                                      className="d-flex align-items-center mb-2"
-                                      style={{
-                                        cursor: "pointer",
-                                        userSelect: "none",
-                                        pointerEvents: "auto",
-                                      }}
-                                      onMouseDown={(e) => {
-                                        // ✅ prevents modal/drag selecting weirdness
-                                        e.preventDefault();
-                                      }}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        toggleCountry(id);
-                                      }}
+                              <div className="d-flex gap-2">
+                                <Input
+                                  type="select"
+                                  value={selectedCountryToAdd}
+                                  onChange={(e) => {
+                                    setSelectedCountryToAdd(e.target.value);
+                                    setCountriesErr("");
+                                  }}
+                                >
+                                  <option value="">Select a country</option>
+                                  {(countries || []).map((c) => (
+                                    <option
+                                      key={c.LIST_ITEM_ID}
+                                      value={c.LIST_ITEM_ID}
                                     >
-                                      <Input
-                                        type="checkbox"
-                                        checked={checked}
-                                        readOnly
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          toggleCountry(id);
-                                        }}
-                                        style={{
-                                          cursor: "pointer",
-                                          pointerEvents: "auto",
-                                        }}
-                                      />
-                                      <span
-                                        className="ms-2"
-                                        style={{
-                                          cursor: "pointer",
-                                          pointerEvents: "auto",
-                                        }}
-                                      >
-                                        {name}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
+                                      {c.ITEM_NAME}
+                                    </option>
+                                  ))}
+                                </Input>
+
+                                <Button
+                                  type="button"
+                                  color="success"
+                                  disabled={!selectedCountryToAdd}
+                                  onClick={() => {
+                                    if (!selectedCountryToAdd) return;
+
+                                    const id = Number(selectedCountryToAdd);
+                                    if (selectedCountries.includes(id)) {
+                                      setSelectedCountryToAdd("");
+                                      return;
+                                    }
+
+                                    setSelectedCountries((prev) => [
+                                      ...prev,
+                                      id,
+                                    ]);
+                                    setSelectedCountryToAdd("");
+                                    setCountriesErr("");
+                                  }}
+                                >
+                                  Add
+                                </Button>
                               </div>
                             )}
 
-                            {countriesErr ? (
-                              <div
-                                className="text-danger mt-2"
-                                style={{ fontSize: 12 }}
-                              >
-                                {countriesErr}
-                              </div>
-                            ) : null}
+                            <div className="mt-3">
+                              <Label className="mb-2">Added Countries</Label>
 
-                            {/* Optional: quick visual of selection */}
-                            {selectedCountries.length ? (
-                              <div
-                                className="text-muted mt-2"
-                                style={{ fontSize: 12 }}
-                              >
-                                Selected: {selectedCountries.join(", ")}
-                              </div>
-                            ) : null}
+                              {selectedCountries.length === 0 ? (
+                                <div className="text-muted">
+                                  No countries added yet.
+                                </div>
+                              ) : (
+                                <ul className="list-unstyled mb-0">
+                                  {selectedCountries.map((id) => (
+                                    <li
+                                      key={id}
+                                      className="d-flex align-items-center justify-content-between border rounded p-2 mb-2"
+                                    >
+                                      <div className="fw-semibold">
+                                        {countryNameById(id)}
+                                      </div>
+
+                                      <Button
+                                        type="button"
+                                        color="danger"
+                                        outline
+                                        size="sm"
+                                        onClick={() =>
+                                          setSelectedCountries((prev) =>
+                                            prev.filter(
+                                              (x) => Number(x) !== Number(id)
+                                            )
+                                          )
+                                        }
+                                      >
+                                        Remove
+                                      </Button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              {countriesErr ? (
+                                <div
+                                  className="text-danger mt-2"
+                                  style={{ fontSize: 12 }}
+                                >
+                                  {countriesErr}
+                                </div>
+                              ) : null}
+                            </div>
                           </FormGroup>
                         </Col>
                       </Row>
@@ -1245,6 +1244,7 @@ const PlaceProfileInner = () => {
                         onClick={() => {
                           toggleAddFee();
                           setSelectedCountries([]);
+                          setSelectedCountryToAdd("");
                           setCountriesErr("");
                         }}
                       >

@@ -678,6 +678,26 @@ export const deletePlaceEntranceFeeApi = (placeId, feeId) =>
 
 // ====================
 
+//===================
+// ROUTES (trips)
+//===================
+
+// -------------------- Routes (Trips) --------------------
+export const getRoutes = (countryId) => {
+  const qs = countryId ? `?COUNTRY_ID=${countryId}` : "";
+  return get(`${url.GET_ROUTES}${qs}`);
+};
+
+export const getRouteById = (routeId, countryId) => {
+  const qs = countryId ? `?COUNTRY_ID=${countryId}` : "";
+  return get(`${url.GET_ROUTE_DETAIL}/${routeId}${qs}`);
+};
+
+export const createRoute = (data) => post(url.GET_ROUTES, data);
+
+// -------------------- Places --------------------
+// export const getPlaces = () => get(url.GET_PLACES);
+
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);

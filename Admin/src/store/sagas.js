@@ -31,6 +31,7 @@ import GuidesSaga from "./guides/saga";
 import TransportationSaga from "./transportation/saga";
 import placesSaga from "./places/saga";
 import placeEntranceFeesSaga from "./PlaceEntranceFees/saga";
+import routesSaga from "./routes/saga";
 
 export default function* rootSaga() {
   yield all([
@@ -65,5 +66,6 @@ export default function* rootSaga() {
     fork(TransportationSaga),
     fork(placesSaga),
     fork(placeEntranceFeesSaga),
+     fork(routesSaga),
   ]);
 }
