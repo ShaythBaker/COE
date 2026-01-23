@@ -445,20 +445,16 @@ export const deleteHotelAdditionalServiceApi = (hotelId, additionalServiceId) =>
 // ====================
 
 export const getClients = (activeStatus) => {
-  // if you want "all clients" when no filter provided:
-  if (
-    activeStatus === null ||
-    activeStatus === undefined ||
-    activeStatus === ""
-  ) {
+  if (activeStatus === null || activeStatus === undefined || activeStatus === "") {
     return get(url.GET_CLIENTS); // "/api/clients"
   }
 
-  // If your backend supports filtering:
+  // ✅ backend expects ACTIVE_STATUS
   return get(
-    `${url.GET_CLIENTS}?activeStatus=${encodeURIComponent(activeStatus)}`
+    `${url.GET_CLIENTS}?ACTIVE_STATUS=${encodeURIComponent(activeStatus)}`
   );
 };
+
 
 export const getClientById = (clientId) =>
   get(`${url.GET_CLIENT_BY_ID}/${clientId}`);
@@ -806,6 +802,29 @@ export const updateRestaurantMealApi = (restaurantId, mealId, data) =>
 
 export const deleteRestaurantMealApi = (restaurantId, mealId) =>
   del(`/api/restaurants/${restaurantId}/meals/${mealId}`);
+
+
+// ========================
+// QOUTATIONS / QUOTATIONS
+// ========================
+export const getQoutationsApi = () => get(url.GET_QOUTATIONS);
+
+export const createQoutationApi = (data) => post(url.QOUTATIONS, data);
+
+// Dropdown data for quotation create modal
+export const getActiveClientsApi = () =>
+  get(url.GET_CLIENTS, { params: { ACTIVE_STATUS: 1 } });
+
+export const getActiveTransportationCompaniesApi = () =>
+  get(url.GET_TRANSPORTATION_COMPANIES, { params: { ACTIVE_STATUS: 1 } });
+
+//STEP1 - get Qoutation by id
+export const getQoutationByIdApi = (id) =>
+  get(`${url.GET_QOUTATION_BY_ID}/${id}`);
+
+export const getQoutationStep1Api = (id) =>
+  get(`${url.GET_QOUTATION_STEP1}/${id}/step1`);
+
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);

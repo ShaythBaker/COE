@@ -302,6 +302,16 @@ const SidebarContent = (props) => {
               </li>
             )}
 
+            {/* Quotations - standalone menu item */}
+            {hasModule("CONTRACTING_USER") && (
+              <li>
+                <Link to="/quotations" className="waves-effect">
+                  <i className="bx bx-receipt" />
+                  <span>{props.t("Quotations")}</span>
+                </Link>
+              </li>
+            )}
+
             {/* Quick Actions */}
             <li>
               <Link to="/#" className="has-arrow">

@@ -166,6 +166,19 @@ export const GET_RESTAURANTS = "/api/restaurants";
 export const RESTAURANTS_MEALS = "/api/restaurants/meals";
 
 
+// ====================
+// QUOTATIONS
+// ====================
+export const GET_QOUTATIONS = "/api/qoutations"; // GET
+export const QOUTATIONS = "/api/qoutations"; // POST
+
+export const GET_TRANSPORTATION_COMPANIES = "/api/transportation/companies"; // GET
+
+export const GET_QOUTATION_BY_ID = "/api/qoutations"; // usage: `${GET_QOUTATION_BY_ID}/${id}`
+export const GET_QOUTATION_STEP1 = "/api/qoutations"; // usage: `${GET_QOUTATION_STEP1}/${id}/step1`
+
+
+
 
 // ====================
 // PRODUCTS

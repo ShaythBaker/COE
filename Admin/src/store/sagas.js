@@ -34,6 +34,7 @@ import placeEntranceFeesSaga from "./PlaceEntranceFees/saga";
 import routesSaga from "./routes/saga";
 import restaurantsSaga from "./Restaurants/saga";
 import restaurantMealsSaga from "./restaurantMeals/saga";
+import quotationsSaga from "./quotations/saga";
 export default function* rootSaga() {
   yield all([
     //public
@@ -70,5 +71,6 @@ export default function* rootSaga() {
     fork(routesSaga),
     fork(restaurantsSaga),
     fork(restaurantMealsSaga),
+    fork(quotationsSaga),
   ]);
 }

@@ -63,6 +63,11 @@ import RouteDetails from "../pages/Routes/RouteDetails";
 import QuickActionsRequests from "../pages/QuickActions/Requests";
 import RequestsView from "../pages/QuickActions/RequestsView";
 
+// Quoteations
+import QuotationsList from "../pages/Quotations/QuotationsList";
+import QuotationWizard from "../pages/Quotations/QuotationWizard";
+
+
 // // File Manager
 import FileManager from "../pages/FileManager/index";
 
@@ -389,19 +394,18 @@ const authProtectedRoutes = [
   { path: "/contracting/places/create", component: <PlaceCreate /> },
   { path: "/contracting/places/:placeId", component: <PlaceProfile /> },
 
-
   {
-  path: "/contracting/restaurants",
-  component: <RestaurantsList />,
-},
-{
-  path: "/contracting/restaurants/create",
-  component: <RestaurantCreate />,
-},
-{
-  path: "/contracting/restaurants/:RESTUARANT_ID",
-  component: <RestaurantProfile />,
-},
+    path: "/contracting/restaurants",
+    component: <RestaurantsList />,
+  },
+  {
+    path: "/contracting/restaurants/create",
+    component: <RestaurantCreate />,
+  },
+  {
+    path: "/contracting/restaurants/:RESTUARANT_ID",
+    component: <RestaurantProfile />,
+  },
 
   //QUICK ACTIONS
 
@@ -414,6 +418,10 @@ const authProtectedRoutes = [
     path: "/quick-actions/requests/:id/view",
     component: <RequestsView />,
   },
+
+  // Quotations
+  { path: "/quotations", component: <QuotationsList /> },
+  { path: "/quotations/:id", component: <QuotationWizard /> },
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },
