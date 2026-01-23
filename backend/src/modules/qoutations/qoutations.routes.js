@@ -1,35 +1,51 @@
 // src/modules/qoutations/qoutations.routes.js
 const express = require("express");
 const qoutationsController = require("./qoutations.controller");
+const qoutationsStep1Controller = require("./qoutations.step1.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 // const { checkPermission } = require("../../middleware/permissionMiddleware");
 
 const router = express.Router();
 
-// Create
+// List qoutations
+router.get("/", authMiddleware, qoutationsController.listQoutations);
+
+// Get single qoutation by ID
+router.get(
+  "/:QOUTATION_ID",
+  authMiddleware,
+  qoutationsController.getQoutationById
+);
+
+// Create qoutation
 router.post("/", authMiddleware, qoutationsController.createQoutation);
 
-// Update
+// Update qoutation
 router.put(
   "/:QOUTATION_ID",
   authMiddleware,
   qoutationsController.updateQoutation
 );
 
-// Deactivate (soft delete)
-router.patch(
-  "/:QOUTATION_ID/deactivate",
+// Soft delete qoutation
+router.delete(
+  "/:QOUTATION_ID",
   authMiddleware,
-  qoutationsController.deactivateQoutation
+  qoutationsController.deleteQoutation
 );
-// Or use DELETE if you prefer:
-// router.delete("/:QOUTATION_ID", authMiddleware, qoutationsController.deactivateQoutation);
 
-// Transportation fees lookup
+// STEP 1: load data for the multi-step form
 router.get(
-  "/transportation-fees/:TRANSPORTATION_COMPANY_ID",
+  "/:QOUTATION_ID/step1",
   authMiddleware,
-  qoutationsController.getTransportationFeesByCompany
+  qoutationsStep1Controller.getQoutationStep1
+);
+
+// STEP 1: save quotation details (routes/places/meals/extra services)
+router.post(
+  "/step1",
+  authMiddleware,
+  qoutationsStep1Controller.saveQoutationStep1
 );
 
 module.exports = router;

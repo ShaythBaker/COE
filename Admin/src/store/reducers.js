@@ -26,8 +26,8 @@ import Guides from "./guides/reducer";
 import Transportation from "./transportation/reducer";
 import Places from "./places/reducer";
 import PlaceEntranceFees from "./PlaceEntranceFees/reducer";
-
-
+import Restaurants from "./restaurants/reducer";
+import RestaurantMeals from "./restaurantMeals/reducer";
 
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
@@ -109,7 +109,9 @@ const rootReducer = combineReducers({
   Transportation,
   Places,
   PlaceEntranceFees,
-Routes,
+  Routes,
+  Restaurants,
+  RestaurantMeals,
 });
 
 export default rootReducer;

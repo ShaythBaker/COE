@@ -154,6 +154,19 @@ export const GET_ROUTE_DETAIL = "/api/routes"; // + /:id
 
 // ====================
 
+//===================
+//RESTAURANTS
+//===================
+
+// Restaurants (Contracting)
+export const RESTAURANTS = "/api/restaurants";
+export const GET_RESTAURANTS = "/api/restaurants";
+
+// Restaurants Meals
+export const RESTAURANTS_MEALS = "/api/restaurants/meals";
+
+
+
 // ====================
 // PRODUCTS
 // ====================

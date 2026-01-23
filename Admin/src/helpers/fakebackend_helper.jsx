@@ -574,10 +574,17 @@ export const updateTransportationVehicleApi = (vehicleId, data) =>
 export const deleteTransportationVehicleApi = (vehicleId) =>
   del(`${url.TRANSPORTATION_VEHICLES}/${vehicleId}`);
 
-export const getTransportationCompanyFees = (transportationCompanyId, activeStatus) => {
+export const getTransportationCompanyFees = (
+  transportationCompanyId,
+  activeStatus
+) => {
   const base = `${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`;
 
-  if (activeStatus === null || activeStatus === undefined || activeStatus === "") {
+  if (
+    activeStatus === null ||
+    activeStatus === undefined ||
+    activeStatus === ""
+  ) {
     return get(base);
   }
 
@@ -586,7 +593,10 @@ export const getTransportationCompanyFees = (transportationCompanyId, activeStat
 
 // 2) Create fee for company
 export const createTransportationCompanyFee = (transportationCompanyId, data) =>
-  post(`${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`, data);
+  post(
+    `${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`,
+    data
+  );
 
 // 3) Get fee by id
 export const getTransportationFeeById = (feeId) =>
@@ -610,7 +620,11 @@ export const deleteTransportationFee = (feeId) =>
 // List places (optional query: PLACE_AREA_ID)
 export const getPlaces = (params = {}) => {
   const qp = {};
-  if (params?.PLACE_AREA_ID !== undefined && params?.PLACE_AREA_ID !== null && params?.PLACE_AREA_ID !== "") {
+  if (
+    params?.PLACE_AREA_ID !== undefined &&
+    params?.PLACE_AREA_ID !== null &&
+    params?.PLACE_AREA_ID !== ""
+  ) {
     qp.PLACE_AREA_ID = Number(params.PLACE_AREA_ID);
   }
   return get(url.GET_PLACES || url.PLACES, { params: qp });
@@ -619,14 +633,12 @@ export const getPlaces = (params = {}) => {
 export const getPlaceById = (placeId) =>
   get(`${url.GET_PLACE_BY_ID || url.PLACES}/${placeId}`);
 
-export const createPlace = (data) =>
-  post(url.PLACES, data);
+export const createPlace = (data) => post(url.PLACES, data);
 
 export const updatePlace = (placeId, data) =>
   put(`${url.PLACES}/${placeId}`, data);
 
-export const deletePlace = (placeId) =>
-  del(`${url.PLACES}/${placeId}`);
+export const deletePlace = (placeId) => del(`${url.PLACES}/${placeId}`);
 
 // ====================
 // PLACES - ENTRANCE FEES APIs
@@ -675,7 +687,6 @@ export const updatePlaceEntranceFeeApi = (placeId, feeId, data) =>
 export const deletePlaceEntranceFeeApi = (placeId, feeId) =>
   del(`${url.PLACES_BASE}/${placeId}/entrance-fees/${feeId}`);
 
-
 // ====================
 
 //===================
@@ -695,12 +706,112 @@ export const getRouteById = (routeId, countryId) => {
 
 export const createRoute = (data) => post(url.GET_ROUTES, data);
 
-// -------------------- Places --------------------
-// export const getPlaces = () => get(url.GET_PLACES);
+// ========================
+// RESTAURANTS (CONTRACTING)
+// ========================
 
+// LIST: GET /api/restaurants (filters as query params)
+export const getRestaurantsApi = (params = {}) => {
+  const query = {};
+
+  const allowed = [
+    "RESTUARANT_ID",
+    "RESTUARANT_NAME",
+    "RESTUARANT_AREA_ID",
+    "RESTUARANT_LOGO_ID",
+    "RESTUARANT_LOCATION",
+    "RESTUARANT_STARS_RATE",
+    "CREATED_BY",
+    "CREATED_ON",
+    "UPDATED_BY",
+    "UPDATED_ON",
+    "ACTIVE_STATUS",
+  ];
+
+  allowed.forEach((k) => {
+    const v = params?.[k];
+    if (v !== undefined && v !== null && v !== "") query[k] = v;
+  });
+
+  return get(url.GET_RESTAURANTS, { params: query });
+};
+
+export const getRestaurantByIdApi = (restaurantId) =>
+  get(`${url.RESTAURANTS}/${restaurantId}`);
+
+export const createRestaurantApi = (data) => post(url.RESTAURANTS, data);
+
+export const updateRestaurantApi = (restaurantId, data) =>
+  put(`${url.RESTAURANTS}/${restaurantId}`, data);
+
+export const deleteRestaurantApi = (restaurantId) =>
+  del(`${url.RESTAURANTS}/${restaurantId}`);
+
+// ========================
+// RESTAURANTS MEALS
+// ========================
+
+// Global list (all restaurants) - optional
+export const getRestaurantsMealsApi = (params = {}) => {
+  const query = {};
+  const allowed = [
+    "RESTAURANT_MEAL_ID",
+    "RESTAURANT_MEAL_DESCRIPTION",
+    "RESTAURANT_ID",
+    "RESTAURANT_MEAL_TYPE_ID",
+    "RESTAURANT_MEAL_RATE_PP",
+    "CREATED_ON",
+    "CREATED_BY",
+    "UPDATED_ON",
+    "UPDATED_BY",
+    "ACTIVE_STATUS",
+  ];
+
+  allowed.forEach((k) => {
+    const v = params?.[k];
+    if (v !== undefined && v !== null && v !== "") query[k] = v;
+  });
+
+  return get(url.RESTAURANTS_MEALS, { params: query });
+};
+
+// Preferred: list meals for a specific restaurant
+export const getRestaurantMealsApi = (restaurantId, params = {}) => {
+  const query = {};
+  const allowed = [
+    "RESTAURANT_MEAL_ID",
+    "RESTAURANT_MEAL_DESCRIPTION",
+    "RESTAURANT_MEAL_TYPE_ID",
+    "RESTAURANT_MEAL_RATE_PP",
+    "CREATED_ON",
+    "CREATED_BY",
+    "UPDATED_ON",
+    "UPDATED_BY",
+    "ACTIVE_STATUS",
+  ];
+
+  allowed.forEach((k) => {
+    const v = params?.[k];
+    if (v !== undefined && v !== null && v !== "") query[k] = v;
+  });
+
+  return get(`/api/restaurants/${restaurantId}/meals`, { params: query });
+};
+// restaurant meals
+export const createRestaurantMealApi = (restaurantId, data) =>
+  post(`/api/restaurants/${restaurantId}/meals`, data);
+
+export const updateRestaurantMealApi = (restaurantId, mealId, data) =>
+  put(`/api/restaurants/${restaurantId}/meals/${mealId}`, data);
+
+export const deleteRestaurantMealApi = (restaurantId, mealId) =>
+  del(`/api/restaurants/${restaurantId}/meals/${mealId}`);
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);
+
+
+//===== 
 
 // get Product detail
 export const getProductDetail = (id) =>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 
-import RequireModule from "../components/Auth/RequireModule";
+import RequireModule from "../components/auth/RequireModule";
 
 // Pages Component
 import Chat from "../pages/Chat/Chat";
@@ -43,6 +43,11 @@ import GuideDetails from "../pages/Contracting/GuideDetails";
 import TransportationCompaniesList from "../pages/Contracting/TransportationCompaniesList";
 import TransportationCompanyCreate from "../pages/Contracting/TransportationCompanyCreate";
 import TransportationCompanyProfile from "../pages/Contracting/TransportationCompanyProfile";
+
+// RESTAURANTS
+import RestaurantsList from "../pages/Contracting/RestaurantsList";
+import RestaurantCreate from "../pages/Contracting/RestaurantCreate";
+import RestaurantProfile from "../pages/Contracting/RestaurantProfile";
 
 // PLACES
 import PlacesList from "../pages/Places/PlacesList";
@@ -383,6 +388,20 @@ const authProtectedRoutes = [
   { path: "/contracting/places", component: <PlacesList /> },
   { path: "/contracting/places/create", component: <PlaceCreate /> },
   { path: "/contracting/places/:placeId", component: <PlaceProfile /> },
+
+
+  {
+  path: "/contracting/restaurants",
+  component: <RestaurantsList />,
+},
+{
+  path: "/contracting/restaurants/create",
+  component: <RestaurantCreate />,
+},
+{
+  path: "/contracting/restaurants/:RESTUARANT_ID",
+  component: <RestaurantProfile />,
+},
 
   //QUICK ACTIONS
 

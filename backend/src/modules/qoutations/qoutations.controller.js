@@ -1,9 +1,8 @@
-// src/modules/qoutations/qoutations.controller.js
+// modules/qoutations/qoutations.controller.js
 const dbService = require("../../core/dbService");
 
 const QOUTATIONS_TABLE = "COE_TBL_QOUTATIONS";
-const CLIENTS_VIEW = "COE_VIEW_CLIENTS_LOOKUP";
-const TRANSPORTATION_FEES_VIEW = "COE_VIEW_TRANSPORTATION_FEES_LOOKUP";
+const QOUTATIONS_VIEW = "COE_VIEW_QOUTATIONS_LOOKUP";
 
 // Helper to get company id from backend (JWT user or session)
 function getCompanyId(req) {
@@ -16,17 +15,186 @@ function getCompanyId(req) {
   return null;
 }
 
+// Helper to compute basic stay info (days & nights) from arriving/departuring dates
+function calculateStayBasicInfo(arrivingDate, departingDate) {
+  if (!arrivingDate || !departingDate) {
+    return null;
+  }
+
+  const start = new Date(arrivingDate);
+  const end = new Date(departingDate);
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end < start
+  ) {
+    return null;
+  }
+
+  const MS_IN_DAY = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((end.getTime() - start.getTime()) / MS_IN_DAY);
+
+  // Convention: nights = diff in days, days = nights + 1
+  const numberOfNights = diffDays;
+  const numberOfDays = diffDays + 1;
+
+  return {
+    NUMBER_OF_DAYS: numberOfDays,
+    NUMBER_OF_NIGHTS: numberOfNights,
+  };
+}
+
+// All columns that can be used as filters on the VIEW
+const QOUTATIONS_FILTERABLE_COLUMNS = [
+  "QOUTATION_ID",
+  "QOUTATION_CLIENT_ID",
+  "QOUTATION_TRANSPORTATION_COMPANY_ID",
+  "QOUTATION_TOTAL_PAX",
+  "QOUTATION_GROUP_NAME",
+  "QOUTATION_ARRIVING_DATE",
+  "QOUTATION_DEPARTURING_DATE",
+  "COMPANY_ID",
+  "CREATED_ON",
+  "UPDATED_ON",
+  "ACTIVE_STATUS",
+  "CREATED_BY_NAME",
+  "UPDATED_BY_NAME",
+  "CLIENT_NAME",
+  "CLIENT_COUNTRY_ID",
+  "CLIENT_COUNTRY_NAME",
+  "CLIENT_EMAIL",
+  "CLIENT_PHONE",
+  "CLIENT_CONTACT_PERSON_NAME",
+  "TRANSPORTATION_COMPANY_NAME",
+  "TRANSPORTATION_PHONE",
+  "TRANSPORTATION_COMPANY_EMAIL",
+];
+
+/**
+ * GET /api/qoutations
+ *
+ * Dynamic filter using COE_VIEW_QOUTATIONS.
+ * Any query param whose key matches a column in the view
+ * is added as an equality filter.
+ *
+ * /api/qoutations?QOUTATION_CLIENT_ID=10&CLIENT_NAME=ACME
+ */
+async function listQoutations(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const where = {};
+    const query = req.query || {};
+
+    // Build dynamic WHERE from query params (only columns in the view)
+    for (const key of Object.keys(query)) {
+      if (QOUTATIONS_FILTERABLE_COLUMNS.includes(key)) {
+        where[key] = query[key];
+      }
+    }
+
+    // Optional pagination: ?limit=&offset=
+    let limit;
+    let offset;
+
+    if (query.limit !== undefined) {
+      const parsedLimit = parseInt(query.limit, 10);
+      if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+        limit = parsedLimit;
+      }
+    }
+
+    if (query.offset !== undefined) {
+      const parsedOffset = parseInt(query.offset, 10);
+      if (!Number.isNaN(parsedOffset) && parsedOffset >= 0) {
+        offset = parsedOffset;
+      }
+    }
+
+    const rows = await dbService.find(
+      {
+        table: QOUTATIONS_VIEW,
+        where,
+        orderBy: "QOUTATION_ID DESC",
+        limit,
+        offset,
+      },
+      companyId
+    );
+
+    // RESPONSE DATA FROM VIEW
+    return res.json(rows);
+  } catch (err) {
+    console.error("listQoutations error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/**
+ * GET /api/qoutations/:QOUTATION_ID
+ *
+ * Uses COE_VIEW_QOUTATIONS (enriched row).
+ */
+async function getQoutationById(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const QOUTATION_ID = parseInt(req.params.QOUTATION_ID, 10);
+    if (!QOUTATION_ID || Number.isNaN(QOUTATION_ID)) {
+      return res.status(400).json({ message: "Invalid QOUTATION_ID" });
+    }
+
+    const rows = await dbService.find(
+      {
+        table: QOUTATIONS_VIEW,
+        where: { QOUTATION_ID },
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Qoutation not found" });
+    }
+
+    // RESPONSE DATA FROM VIEW
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error("getQoutationById error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 /**
  * POST /api/qoutations
  *
  * BODY:
  * {
- *   "CLIENT_ID": "",
- *   "ARRIVING_DATE": "",
- *   "DEPARTURING_DATE": "",
- *   "TRANSPORTATION_COMPANY_ID": "",
- *   "GROUP_NAME": ""
+ *   "QOUTATION_CLIENT_ID": 123,              // required
+ *   "QOUTATION_TOTAL_PAX": 25,
+ *   "QOUTATION_TRANSPORTATION_COMPANY_ID": 5,
+ *   "QOUTATION_GROUP_NAME": "Group A",      // required
+ *   "QOUTATION_ARRIVING_DATE": "2026-01-01",
+ *   "QOUTATION_DEPARTURING_DATE": "2026-01-07",
+ *   "ACTIVE_STATUS": 1
  * }
+ *
+ * Backend handles:
+ *   COMPANY_ID (from token/session via dbService)
+ *   CREATED_ON, CREATED_BY, UPDATED_ON, UPDATED_BY
+ *
+ * RESPONSE: created row FROM VIEW.
  */
 async function createQoutation(req, res) {
   try {
@@ -43,170 +211,93 @@ async function createQoutation(req, res) {
     }
 
     const {
-      CLIENT_ID,
-      ARRIVING_DATE,
-      DEPARTURING_DATE,
-      TRANSPORTATION_COMPANY_ID,
-      GROUP_NAME,
+      QOUTATION_CLIENT_ID,
+      QOUTATION_TOTAL_PAX,
+      QOUTATION_TRANSPORTATION_COMPANY_ID,
+      QOUTATION_GROUP_NAME,
+      QOUTATION_ARRIVING_DATE,
+      QOUTATION_DEPARTURING_DATE,
+      ACTIVE_STATUS,
     } = req.body;
 
-    // Basic validation
-    if (
-      !CLIENT_ID ||
-      !ARRIVING_DATE ||
-      !DEPARTURING_DATE ||
-      !TRANSPORTATION_COMPANY_ID
-    ) {
+    if (!QOUTATION_CLIENT_ID || !QOUTATION_GROUP_NAME) {
       return res.status(400).json({
-        message:
-          "CLIENT_ID, ARRIVING_DATE, DEPARTURING_DATE and TRANSPORTATION_COMPANY_ID are required",
+        message: "QOUTATION_CLIENT_ID and QOUTATION_GROUP_NAME are required",
       });
     }
 
-    const arriving = new Date(ARRIVING_DATE);
-    const departing = new Date(DEPARTURING_DATE);
-
-    if (isNaN(arriving.getTime()) || isNaN(departing.getTime())) {
-      return res.status(400).json({
-        message: "ARRIVING_DATE and DEPARTURING_DATE must be valid dates",
-      });
-    }
-
-    // 1) Insert into COE_TBL_QOUTATIONS
     const now = new Date();
-    const insertResult = await dbService.insert(
+
+    const insertData = {
+      QOUTATION_CLIENT_ID,
+      QOUTATION_TOTAL_PAX:
+        QOUTATION_TOTAL_PAX !== undefined ? QOUTATION_TOTAL_PAX : null,
+      QOUTATION_TRANSPORTATION_COMPANY_ID:
+        QOUTATION_TRANSPORTATION_COMPANY_ID !== undefined
+          ? QOUTATION_TRANSPORTATION_COMPANY_ID
+          : null,
+      QOUTATION_GROUP_NAME,
+      QOUTATION_ARRIVING_DATE:
+        QOUTATION_ARRIVING_DATE !== undefined ? QOUTATION_ARRIVING_DATE : null,
+      QOUTATION_DEPARTURING_DATE:
+        QOUTATION_DEPARTURING_DATE !== undefined
+          ? QOUTATION_DEPARTURING_DATE
+          : null,
+      ACTIVE_STATUS: ACTIVE_STATUS ?? 1,
+      CREATED_BY: userFromToken.USER_ID,
+      CREATED_ON: now,
+      UPDATED_BY: userFromToken.USER_ID,
+      UPDATED_ON: now,
+      // COMPANY_ID will be injected by dbService.insert using companyId param
+    };
+
+    const result = await dbService.insert(
       QOUTATIONS_TABLE,
-      {
-        QOUTATION_CLIENT_ID: CLIENT_ID,
-        QOUTATION_TRANSPORTATION_COMPANY_ID: TRANSPORTATION_COMPANY_ID,
-        QOUTATION_GROUP_NAME: GROUP_NAME || null,
-        QOUTATION_ARRIVING_DATE: ARRIVING_DATE,
-        QOUTATION_DEPARTURING_DATE: DEPARTURING_DATE,
-        CREATED_ON: now,
-        CREATED_BY: userFromToken.USER_ID,
-        ACTIVE_STATUS: 1,
-      },
+      insertData,
       companyId
     );
 
-    const QOUTATION_ID = insertResult.insertId;
+    const QOUTATION_ID = result.insertId;
 
-    // 2) Get the inserted qoutation
-    const qoutationRows = await dbService.find(
+    // RESPONSE DATA FROM VIEW
+    const rows = await dbService.find(
       {
-        table: QOUTATIONS_TABLE,
+        table: QOUTATIONS_VIEW,
         where: { QOUTATION_ID },
-        fields: [
-          "QOUTATION_ID",
-          "QOUTATION_CLIENT_ID",
-          "QOUTATION_TRANSPORTATION_COMPANY_ID",
-          "QOUTATION_GROUP_NAME",
-          "QOUTATION_ARRIVING_DATE",
-          "QOUTATION_DEPARTURING_DATE",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATUS",
-        ],
         limit: 1,
       },
       companyId
     );
 
-    if (!qoutationRows.length) {
-      return res.status(500).json({
-        message: "Qoutation inserted but could not be retrieved",
-      });
+    const createdQoutation = rows[0] || null;
+
+    // Compute STAY_INFO -> STAY_BASIC_INFO based on arriving/departuring dates
+    let stayBasicInfo = null;
+    if (createdQoutation) {
+      stayBasicInfo = calculateStayBasicInfo(
+        createdQoutation.QOUTATION_ARRIVING_DATE,
+        createdQoutation.QOUTATION_DEPARTURING_DATE
+      );
+    } else if (req.body) {
+      // Fallback: use body if for some reason view row is missing
+      stayBasicInfo = calculateStayBasicInfo(
+        req.body.QOUTATION_ARRIVING_DATE,
+        req.body.QOUTATION_DEPARTURING_DATE
+      );
     }
 
-    const qoutation = qoutationRows[0];
-
-    // 3) Get the client data from COE_VIEW_CLIENTS_LOOKUP
-    const clientRows = await dbService.find(
-      {
-        table: CLIENTS_VIEW,
-        where: { CLIENT_ID },
-        fields: [
-          "CLIENT_ID",
-          "CLIENT_NAME",
-          "EMAIL",
-          "PHONE",
-          "CLIENT_LOGO",
-          "CONTACT_PERSON_NAME",
-          "ACTIVE_STATUS",
-          "COMPANY_ID",
-          "COUNTRY_ID",
-          "COUNTRY_NAME",
-          "CREATED_BY",
-          "CREATED_BY_NAME",
-          "CREATED_ON",
-          "UPDATED_BY",
-          "UPDATED_BY_NAME",
-          "UPDATED_ON",
-        ],
-        limit: 1,
-      },
-      companyId
-    );
-
-    const client = clientRows.length ? clientRows[0] : null;
-
-    // 4) Get the rates for the transportation company
-    const transportationFees = await dbService.find(
-      {
-        table: TRANSPORTATION_FEES_VIEW,
-        where: {
-          TRANSPORTATION_FEE_COMPANY_ID: TRANSPORTATION_COMPANY_ID,
-          // View column is spelled ACTIVE_STATSUS
-          ACTIVE_STATSUS: 1,
-        },
-        fields: [
-          "TRANSPORTATION_FEE_ID",
-          "TRANSPORTATION_FEE_COMPANY_ID",
-          "TRANSPORTATION_COMPANY_NAME",
-          "TRANSPORTATION_FEE_VECHLE_TYPE",
-          "VEHICLE_TYPE_NAME",
-          "TRANSPORTATION_FEE_TYPE",
-          "TRANSPORTATION_FEE_TYPE_NAME",
-          "TRANSPORTATION_FEE_AMOUNT",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATSUS",
-        ],
-        orderBy: "TRANSPORTATION_FEE_VECHLE_TYPE ASC",
-      },
-      companyId
-    );
-
-    // 5) Calculate days & nights of stay
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const diffMs = departing - arriving;
-
-    let nights = 0;
-    let days = 0;
-
-    if (diffMs > 0) {
-      nights = Math.round(diffMs / msPerDay);
-      days = nights + 1;
-    }
-
-    return res.status(201).json({
+    const responseBody = {
       message: "Qoutation created",
-      QOUTATION: qoutation,
-      CLIENT: client,
-      TRANSPORTATION_FEES: transportationFees,
-      STAY: {
-        ARRIVING_DATE,
-        DEPARTURING_DATE,
-        days,
-        nights,
-      },
-    });
+      QOUTATION: createdQoutation,
+    };
+
+    if (stayBasicInfo) {
+      responseBody.STAY_INFO = {
+        STAY_BASIC_INFO: stayBasicInfo,
+      };
+    }
+
+    return res.status(201).json(responseBody);
   } catch (err) {
     console.error("createQoutation error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -216,17 +307,18 @@ async function createQoutation(req, res) {
 /**
  * PUT /api/qoutations/:QOUTATION_ID
  *
- * BODY: any subset of
+ * BODY (any subset):
  * {
- *   "CLIENT_ID": "",
- *   "ARRIVING_DATE": "",
- *   "DEPARTURING_DATE": "",
- *   "TRANSPORTATION_COMPANY_ID": "",
- *   "GROUP_NAME": "",
- *   "ACTIVE_STATUS": 0/1   // optional
+ *   "QOUTATION_CLIENT_ID": ...,
+ *   "QOUTATION_TOTAL_PAX": ...,
+ *   "QOUTATION_TRANSPORTATION_COMPANY_ID": ...,
+ *   "QOUTATION_GROUP_NAME": "...",
+ *   "QOUTATION_ARRIVING_DATE": "...",
+ *   "QOUTATION_DEPARTURING_DATE": "...",
+ *   "ACTIVE_STATUS": 0/1
  * }
  *
- * Returns same structure as createQoutation
+ * RESPONSE: updated row FROM VIEW.
  */
 async function updateQoutation(req, res) {
   try {
@@ -247,8 +339,8 @@ async function updateQoutation(req, res) {
       return res.status(400).json({ message: "Invalid QOUTATION_ID" });
     }
 
-    // 1) Ensure qoutation exists (scoped by COMPANY_ID)
-    const existingRows = await dbService.find(
+    // Ensure row exists for this company (table is fine, no response)
+    const existing = await dbService.find(
       {
         table: QOUTATIONS_TABLE,
         where: { QOUTATION_ID },
@@ -257,197 +349,73 @@ async function updateQoutation(req, res) {
       companyId
     );
 
-    if (!existingRows.length) {
+    if (existing.length === 0) {
       return res.status(404).json({ message: "Qoutation not found" });
     }
 
-    const existing = existingRows[0];
-
     const {
-      CLIENT_ID,
-      ARRIVING_DATE,
-      DEPARTURING_DATE,
-      TRANSPORTATION_COMPANY_ID,
-      GROUP_NAME,
+      QOUTATION_CLIENT_ID,
+      QOUTATION_TOTAL_PAX,
+      QOUTATION_TRANSPORTATION_COMPANY_ID,
+      QOUTATION_GROUP_NAME,
+      QOUTATION_ARRIVING_DATE,
+      QOUTATION_DEPARTURING_DATE,
       ACTIVE_STATUS,
     } = req.body;
 
     const updateData = {};
 
-    if (CLIENT_ID !== undefined) {
-      updateData.QOUTATION_CLIENT_ID = CLIENT_ID;
+    if (QOUTATION_CLIENT_ID !== undefined) {
+      updateData.QOUTATION_CLIENT_ID = QOUTATION_CLIENT_ID;
     }
-
-    let arrivingDateToUse = existing.QOUTATION_ARRIVING_DATE;
-    let departuringDateToUse = existing.QOUTATION_DEPARTURING_DATE;
-
-    if (ARRIVING_DATE !== undefined) {
-      const arriving = new Date(ARRIVING_DATE);
-      if (isNaN(arriving.getTime())) {
-        return res
-          .status(400)
-          .json({ message: "ARRIVING_DATE must be a valid date" });
-      }
-      updateData.QOUTATION_ARRIVING_DATE = ARRIVING_DATE;
-      arrivingDateToUse = ARRIVING_DATE;
+    if (QOUTATION_TOTAL_PAX !== undefined) {
+      updateData.QOUTATION_TOTAL_PAX = QOUTATION_TOTAL_PAX;
     }
-
-    if (DEPARTURING_DATE !== undefined) {
-      const departing = new Date(DEPARTURING_DATE);
-      if (isNaN(departing.getTime())) {
-        return res
-          .status(400)
-          .json({ message: "DEPARTURING_DATE must be a valid date" });
-      }
-      updateData.QOUTATION_DEPARTURING_DATE = DEPARTURING_DATE;
-      departuringDateToUse = DEPARTURING_DATE;
-    }
-
-    if (TRANSPORTATION_COMPANY_ID !== undefined) {
+    if (QOUTATION_TRANSPORTATION_COMPANY_ID !== undefined) {
       updateData.QOUTATION_TRANSPORTATION_COMPANY_ID =
-        TRANSPORTATION_COMPANY_ID;
+        QOUTATION_TRANSPORTATION_COMPANY_ID;
     }
-
-    if (GROUP_NAME !== undefined) {
-      updateData.QOUTATION_GROUP_NAME = GROUP_NAME || null;
+    if (QOUTATION_GROUP_NAME !== undefined) {
+      updateData.QOUTATION_GROUP_NAME = QOUTATION_GROUP_NAME;
     }
-
+    if (QOUTATION_ARRIVING_DATE !== undefined) {
+      updateData.QOUTATION_ARRIVING_DATE = QOUTATION_ARRIVING_DATE;
+    }
+    if (QOUTATION_DEPARTURING_DATE !== undefined) {
+      updateData.QOUTATION_DEPARTURING_DATE = QOUTATION_DEPARTURING_DATE;
+    }
     if (ACTIVE_STATUS !== undefined) {
       updateData.ACTIVE_STATUS = ACTIVE_STATUS;
     }
 
-    // Metadata
     const now = new Date();
-    updateData.UPDATED_ON = now;
     updateData.UPDATED_BY = userFromToken.USER_ID;
+    updateData.UPDATED_ON = now;
 
-    if (Object.keys(updateData).length > 0) {
-      await dbService.update(
-        QOUTATIONS_TABLE,
-        updateData,
-        { QOUTATION_ID },
-        companyId
-      );
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
     }
 
-    // Re-fetch updated qoutation
-    const updatedRows = await dbService.find(
+    await dbService.update(
+      QOUTATIONS_TABLE,
+      updateData,
+      { QOUTATION_ID },
+      companyId
+    );
+
+    // RESPONSE DATA FROM VIEW
+    const updated = await dbService.find(
       {
-        table: QOUTATIONS_TABLE,
+        table: QOUTATIONS_VIEW,
         where: { QOUTATION_ID },
-        fields: [
-          "QOUTATION_ID",
-          "QOUTATION_CLIENT_ID",
-          "QOUTATION_TRANSPORTATION_COMPANY_ID",
-          "QOUTATION_GROUP_NAME",
-          "QOUTATION_ARRIVING_DATE",
-          "QOUTATION_DEPARTURING_DATE",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATUS",
-        ],
         limit: 1,
       },
       companyId
     );
-
-    const qoutation = updatedRows[0];
-
-    const finalClientId = qoutation.QOUTATION_CLIENT_ID;
-    const finalTransportationCompanyId =
-      qoutation.QOUTATION_TRANSPORTATION_COMPANY_ID;
-
-    // Fetch client
-    const clientRows = await dbService.find(
-      {
-        table: CLIENTS_VIEW,
-        where: { CLIENT_ID: finalClientId },
-        fields: [
-          "CLIENT_ID",
-          "CLIENT_NAME",
-          "EMAIL",
-          "PHONE",
-          "CLIENT_LOGO",
-          "CONTACT_PERSON_NAME",
-          "ACTIVE_STATUS",
-          "COMPANY_ID",
-          "COUNTRY_ID",
-          "COUNTRY_NAME",
-          "CREATED_BY",
-          "CREATED_BY_NAME",
-          "CREATED_ON",
-          "UPDATED_BY",
-          "UPDATED_BY_NAME",
-          "UPDATED_ON",
-        ],
-        limit: 1,
-      },
-      companyId
-    );
-
-    const client = clientRows.length ? clientRows[0] : null;
-
-    // Fetch transportation fees for final company
-    const transportationFees = await dbService.find(
-      {
-        table: TRANSPORTATION_FEES_VIEW,
-        where: {
-          TRANSPORTATION_FEE_COMPANY_ID: finalTransportationCompanyId,
-          ACTIVE_STATSUS: 1,
-        },
-        fields: [
-          "TRANSPORTATION_FEE_ID",
-          "TRANSPORTATION_FEE_COMPANY_ID",
-          "TRANSPORTATION_COMPANY_NAME",
-          "TRANSPORTATION_FEE_VECHLE_TYPE",
-          "VEHICLE_TYPE_NAME",
-          "TRANSPORTATION_FEE_TYPE",
-          "TRANSPORTATION_FEE_TYPE_NAME",
-          "TRANSPORTATION_FEE_AMOUNT",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATSUS",
-        ],
-        orderBy: "TRANSPORTATION_FEE_VECHLE_TYPE ASC",
-      },
-      companyId
-    );
-
-    // Recalculate stay using (possibly) updated dates
-    const arriving = new Date(qoutation.QOUTATION_ARRIVING_DATE || arrivingDateToUse);
-    const departing = new Date(
-      qoutation.QOUTATION_DEPARTURING_DATE || departuringDateToUse
-    );
-
-    let nights = 0;
-    let days = 0;
-
-    if (!isNaN(arriving.getTime()) && !isNaN(departing.getTime())) {
-      const diffMs = departing - arriving;
-      if (diffMs > 0) {
-        const msPerDay = 24 * 60 * 60 * 1000;
-        nights = Math.round(diffMs / msPerDay);
-        days = nights + 1;
-      }
-    }
 
     return res.json({
       message: "Qoutation updated",
-      QOUTATION: qoutation,
-      CLIENT: client,
-      TRANSPORTATION_FEES: transportationFees,
-      STAY: {
-        ARRIVING_DATE: qoutation.QOUTATION_ARRIVING_DATE,
-        DEPARTURING_DATE: qoutation.QOUTATION_DEPARTURING_DATE,
-        days,
-        nights,
-      },
+      QOUTATION: updated[0] || null,
     });
   } catch (err) {
     console.error("updateQoutation error:", err);
@@ -456,12 +424,12 @@ async function updateQoutation(req, res) {
 }
 
 /**
- * PATCH /api/qoutations/:QOUTATION_ID/deactivate
- * or   DELETE /api/qoutations/:QOUTATION_ID  (if you prefer soft delete)
+ * DELETE /api/qoutations/:QOUTATION_ID
  *
- * Sets ACTIVE_STATUS = 0
+ * Soft delete: ACTIVE_STATUS = 0
+ * (No need to return data; only a message.)
  */
-async function deactivateQoutation(req, res) {
+async function deleteQoutation(req, res) {
   try {
     const companyId = getCompanyId(req);
     if (companyId == null) {
@@ -480,8 +448,7 @@ async function deactivateQoutation(req, res) {
       return res.status(400).json({ message: "Invalid QOUTATION_ID" });
     }
 
-    // Ensure it exists
-    const existingRows = await dbService.find(
+    const existing = await dbService.find(
       {
         table: QOUTATIONS_TABLE,
         where: { QOUTATION_ID },
@@ -490,7 +457,7 @@ async function deactivateQoutation(req, res) {
       companyId
     );
 
-    if (!existingRows.length) {
+    if (existing.length === 0) {
       return res.status(404).json({ message: "Qoutation not found" });
     }
 
@@ -500,117 +467,24 @@ async function deactivateQoutation(req, res) {
       QOUTATIONS_TABLE,
       {
         ACTIVE_STATUS: 0,
-        UPDATED_ON: now,
         UPDATED_BY: userFromToken.USER_ID,
+        UPDATED_ON: now,
       },
       { QOUTATION_ID },
       companyId
     );
 
-    const updatedRows = await dbService.find(
-      {
-        table: QOUTATIONS_TABLE,
-        where: { QOUTATION_ID },
-        fields: [
-          "QOUTATION_ID",
-          "QOUTATION_CLIENT_ID",
-          "QOUTATION_TRANSPORTATION_COMPANY_ID",
-          "QOUTATION_GROUP_NAME",
-          "QOUTATION_ARRIVING_DATE",
-          "QOUTATION_DEPARTURING_DATE",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATUS",
-        ],
-        limit: 1,
-      },
-      companyId
-    );
-
-    return res.json({
-      message: "Qoutation deactivated",
-      QOUTATION: updatedRows[0],
-    });
+    return res.json({ message: "Qoutation deleted (soft)" });
   } catch (err) {
-    console.error("deactivateQoutation error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-}
-
-/**
- * GET /api/qoutations/transportation-fees/:TRANSPORTATION_COMPANY_ID
- *
- * Returns transportation fees for a given TRANSPORTATION_FEE_COMPANY_ID
- * from COE_VIEW_TRANSPORTATION_FEES_LOOKUP, scoped by COMPANY_ID.
- */
-async function getTransportationFeesByCompany(req, res) {
-  try {
-    const companyId = getCompanyId(req);
-    if (companyId == null) {
-      return res
-        .status(401)
-        .json({ message: "COMPANY_ID not found for current user" });
-    }
-
-    const TRANSPORTATION_COMPANY_ID = parseInt(
-      req.params.TRANSPORTATION_COMPANY_ID,
-      10
-    );
-
-    if (
-      !TRANSPORTATION_COMPANY_ID ||
-      Number.isNaN(TRANSPORTATION_COMPANY_ID)
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid TRANSPORTATION_COMPANY_ID" });
-    }
-
-    const fees = await dbService.find(
-      {
-        table: TRANSPORTATION_FEES_VIEW,
-        where: {
-          TRANSPORTATION_FEE_COMPANY_ID: TRANSPORTATION_COMPANY_ID,
-          // if you only want active:
-          ACTIVE_STATSUS: 1,
-        },
-        fields: [
-          "TRANSPORTATION_FEE_ID",
-          "TRANSPORTATION_FEE_COMPANY_ID",
-          "TRANSPORTATION_COMPANY_NAME",
-          "TRANSPORTATION_FEE_VECHLE_TYPE",
-          "VEHICLE_TYPE_NAME",
-          "TRANSPORTATION_FEE_TYPE",
-          "TRANSPORTATION_FEE_TYPE_NAME",
-          "TRANSPORTATION_FEE_AMOUNT",
-          "COMPANY_ID",
-          "CREATED_ON",
-          "CREATED_BY",
-          "UPDATED_ON",
-          "UPDATED_BY",
-          "ACTIVE_STATSUS",
-        ],
-        orderBy: "TRANSPORTATION_FEE_VECHLE_TYPE ASC",
-      },
-      companyId
-    );
-
-    return res.json({
-      TRANSPORTATION_COMPANY_ID,
-      TRANSPORTATION_FEES: fees,
-    });
-  } catch (err) {
-    console.error("getTransportationFeesByCompany error:", err);
+    console.error("deleteQoutation error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 }
 
 module.exports = {
+  listQoutations,
+  getQoutationById,
   createQoutation,
   updateQoutation,
-  deactivateQoutation,
-  getTransportationFeesByCompany,
+  deleteQoutation,
 };
