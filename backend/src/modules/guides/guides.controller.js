@@ -50,7 +50,6 @@ async function listGuides(req, res) {
           "GUIDE_EMAIL",
           "GUIDE_PROFILE_IMAGE",
           "GUIDE_ACTIVE_STATUS",
-          "COMPANY_ID",
           "CREATED_BY",
           "CREATED_ON",
           "UPDATED_ON",

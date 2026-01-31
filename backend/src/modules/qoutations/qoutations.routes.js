@@ -48,4 +48,11 @@ router.post(
   qoutationsStep1Controller.saveQoutationStep1
 );
 
+router.get(
+  "/:QOUTATION_ID/step1/submitted",
+  authMiddleware,
+  qoutationsStep1Controller
+  .getQoutationStep1Submitted
+);
+
 module.exports = router;

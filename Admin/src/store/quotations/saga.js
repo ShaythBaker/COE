@@ -7,6 +7,8 @@ import {
   createQoutationApi,
   getQoutationByIdApi,
   getQoutationStep1Api,
+  getQoutationStep1SubmittedApi,
+  saveQoutationStep1Api,
 } from "../../helpers/fakebackend_helper";
 
 const normalizeErr = (e) =>
@@ -67,6 +69,47 @@ function* onGetQoutationStep1({ payload }) {
     yield put(actions.getQoutationStep1Fail(normalizeErr(e)));
   }
 }
+function* onGetQoutationStep1Submitted({ payload }) {
+  const id = payload?.id;
+  if (!id) return;
+
+  try {
+    const res = yield call(getQoutationStep1SubmittedApi, id);
+    const data = res?.data || res;
+
+    // Submitted response is saved rows shape: { QOUTATION_ID, ROUTS: [...] }
+    // If empty / not submitted, store null
+    if (!data || !data.QOUTATION_ID) {
+      yield put(actions.getQoutationStep1SubmittedSuccess(null));
+      return;
+    }
+
+    yield put(actions.getQoutationStep1SubmittedSuccess(data));
+  } catch (e) {
+    // 404/204 => not submitted
+    const status = e?.response?.status;
+    if (status === 404 || status === 204) {
+      yield put(actions.getQoutationStep1SubmittedSuccess(null));
+      return;
+    }
+
+    yield put(actions.getQoutationStep1SubmittedFail(normalizeErr(e)));
+  }
+}
+function* onSaveQoutationStep1({ payload }) {
+  try {
+    const data = payload?.data;
+
+    const res = yield call(saveQoutationStep1Api, data);
+
+    yield put(actions.saveQoutationStep1Success(res?.data || res));
+
+    // refresh submitted state after save
+    yield put(actions.getQoutationStep1Submitted(payload?.id));
+  } catch (e) {
+    yield put(actions.saveQoutationStep1Fail(normalizeErr(e)));
+  }
+}
 
 export default function* quotationsSaga() {
   yield takeLatest(types.GET_QOUTATIONS, onGetQoutations);
@@ -74,4 +117,10 @@ export default function* quotationsSaga() {
 
   yield takeLatest(types.GET_QOUTATION_BY_ID, onGetQoutationById);
   yield takeLatest(types.GET_QOUTATION_STEP1, onGetQoutationStep1);
+
+  yield takeLatest(
+    types.GET_QOUTATION_STEP1_SUBMITTED,
+    onGetQoutationStep1Submitted
+  );
+  yield takeLatest(types.SAVE_QOUTATION_STEP1, onSaveQoutationStep1);
 }

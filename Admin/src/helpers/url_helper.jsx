@@ -177,6 +177,13 @@ export const GET_TRANSPORTATION_COMPANIES = "/api/transportation/companies"; // 
 export const GET_QOUTATION_BY_ID = "/api/qoutations"; // usage: `${GET_QOUTATION_BY_ID}/${id}`
 export const GET_QOUTATION_STEP1 = "/api/qoutations"; // usage: `${GET_QOUTATION_STEP1}/${id}/step1`
 
+// Qoutation step1 submitted check
+export const GET_QOUTATION_STEP1_SUBMITTED = "/api/qoutations"; // use `${...}/${id}/step1/submitted`
+
+// Save step1
+export const SAVE_QOUTATION_STEP1 = "/api/qoutations/step1"; // use `${...}/${id}/step1`
+
+
 
 
 

@@ -52,3 +52,33 @@ export const getQoutationStep1Fail = (error) => ({
   type: types.GET_QOUTATION_STEP1_FAIL,
   payload: error,
 });
+
+export const getQoutationStep1Submitted = (id) => ({
+  type: types.GET_QOUTATION_STEP1_SUBMITTED,
+  payload: { id },
+});
+
+export const getQoutationStep1SubmittedSuccess = (data) => ({
+  type: types.GET_QOUTATION_STEP1_SUBMITTED_SUCCESS,
+  payload: data, // can be null when not submitted
+});
+
+export const getQoutationStep1SubmittedFail = (error) => ({
+  type: types.GET_QOUTATION_STEP1_SUBMITTED_FAIL,
+  payload: error,
+});
+
+export const saveQoutationStep1 = (id, data) => ({
+  type: types.SAVE_QOUTATION_STEP1,
+  payload: { id, data },
+});
+
+export const saveQoutationStep1Success = (res) => ({
+  type: types.SAVE_QOUTATION_STEP1_SUCCESS,
+  payload: res,
+});
+
+export const saveQoutationStep1Fail = (error) => ({
+  type: types.SAVE_QOUTATION_STEP1_FAIL,
+  payload: error,
+});

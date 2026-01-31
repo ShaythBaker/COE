@@ -3,6 +3,7 @@ const dbService = require("../../core/dbService");
 
 const RESTAURANTS_TABLE = "COE_TBL_RESTAURANTS";
 const RESTAURANT_MEALS_TABLE = "COE_TBL_RESTAURANT_MEALS";
+const RESTAURANT_MEALS_LOOKUP_VIEW = "COE_VIEW_RESTAURANT_MEALS_LOOKUP";
 
 // Helper to get company id from backend (JWT user or session)
 function getCompanyId(req) {
@@ -735,6 +736,142 @@ async function deleteRestaurantMeal(req, res) {
   }
 }
 
+/**
+ * GET /api/restaurants/meals/lookup
+ *
+ * Returns meals from COE_VIEW_RESTAURANT_MEALS_LOOKUP
+ * grouped and sorted as:
+ *  1) by restaurant
+ *  2) by RESTAURANT_MEAL_TYPE
+ *  3) by meal
+ */
+async function listRestaurantMealsLookup(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    // 1) Get flat rows from the view
+    const rows = await dbService.find(
+      {
+        table: RESTAURANT_MEALS_LOOKUP_VIEW,
+        where: {}, // COMPANY_ID is enforced inside dbService using companyId
+        fields: [
+          "RESTAURANT_MEAL_ID",
+          "RESTAURANT_MEAL_DESCRIPTION",
+          "RESTAURANT_ID",
+          "RESTUARANT_NAME",
+          "RESTAURANT_MEAL_TYPE_ID",
+          "RESTAURANT_MEAL_TYPE_NAME",
+          "RESTAURANT_MEAL_RATE_PP",
+          "COMPANY_ID",
+          "ACTIVE_STATUS",
+          "CREATED_ON",
+          "CREATED_BY",
+          "UPDATED_ON",
+          "UPDATED_BY",
+        ],
+        // Sort at SQL level:
+        //  1) restaurant
+        //  2) meal type
+        //  3) meal
+        orderBy:
+          "RESTUARANT_NAME ASC, RESTAURANT_MEAL_TYPE_NAME ASC, RESTAURANT_MEAL_DESCRIPTION ASC",
+      },
+      companyId
+    );
+
+    // 2) Transform to nested structure:
+    // [
+    //   {
+    //     RESTAURANT_ID,
+    //     RESTUARANT_NAME,
+    //     RESTAURANT_MEAL_TYPES: [
+    //       {
+    //         RESTAURANT_MEAL_TYPE_ID,
+    //         RESTAURANT_MEAL_TYPE_NAME,
+    //         MEALS: [ { ...meal fields } ]
+    //       }
+    //     ]
+    //   }
+    // ]
+
+    const restaurantsMap = new Map();
+    const restaurantsArr = [];
+
+    for (const row of rows) {
+      // --- level 1: restaurant ---
+      let restaurant = restaurantsMap.get(row.RESTAURANT_ID);
+      if (!restaurant) {
+        restaurant = {
+          RESTAURANT_ID: row.RESTAURANT_ID,
+          RESTUARANT_NAME: row.RESTUARANT_NAME,
+          RESTAURANT_MEAL_TYPES: [],
+        };
+        restaurantsMap.set(row.RESTAURANT_ID, restaurant);
+        restaurantsArr.push(restaurant);
+      }
+
+      // --- level 2: meal type within restaurant ---
+      let type = restaurant.RESTAURANT_MEAL_TYPES.find(
+        (t) => t.RESTAURANT_MEAL_TYPE_ID === row.RESTAURANT_MEAL_TYPE_ID
+      );
+      if (!type) {
+        type = {
+          RESTAURANT_MEAL_TYPE_ID: row.RESTAURANT_MEAL_TYPE_ID,
+          RESTAURANT_MEAL_TYPE_NAME: row.RESTAURANT_MEAL_TYPE_NAME,
+          MEALS: [],
+        };
+        restaurant.RESTAURANT_MEAL_TYPES.push(type);
+      }
+
+      // --- level 3: meal within type ---
+      const meal = {
+        RESTAURANT_MEAL_ID: row.RESTAURANT_MEAL_ID,
+        RESTAURANT_MEAL_DESCRIPTION: row.RESTAURANT_MEAL_DESCRIPTION,
+        RESTAURANT_MEAL_RATE_PP: row.RESTAURANT_MEAL_RATE_PP,
+        ACTIVE_STATUS: row.ACTIVE_STATUS,
+        CREATED_ON: row.CREATED_ON,
+        CREATED_BY: row.CREATED_BY,
+        UPDATED_ON: row.UPDATED_ON,
+        UPDATED_BY: row.UPDATED_BY,
+      };
+
+      type.MEALS.push(meal);
+    }
+
+    // Optional: ensure arrays are sorted at JS side too
+    restaurantsArr.sort((a, b) =>
+      String(a.RESTUARANT_NAME).localeCompare(String(b.RESTUARANT_NAME))
+    );
+    for (const r of restaurantsArr) {
+      r.RESTAURANT_MEAL_TYPES.sort((a, b) =>
+        String(a.RESTAURANT_MEAL_TYPE_NAME).localeCompare(
+          String(b.RESTAURANT_MEAL_TYPE_NAME)
+        )
+      );
+      for (const t of r.RESTAURANT_MEAL_TYPES) {
+        t.MEALS.sort((a, b) =>
+          String(a.RESTAURANT_MEAL_DESCRIPTION).localeCompare(
+            String(b.RESTAURANT_MEAL_DESCRIPTION)
+          )
+        );
+      }
+    }
+
+    // 3) Send a *single object* containing all nested data
+    return res.json({
+      restaurants: restaurantsArr,
+    });
+  } catch (err) {
+    console.error("listRestaurantMealsLookup error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 module.exports = {
   // Restaurants
   listRestaurants,
@@ -748,4 +885,6 @@ module.exports = {
   createRestaurantMeal,
   updateRestaurantMeal,
   deleteRestaurantMeal,
+    listRestaurantMealsLookup, 
+
 };

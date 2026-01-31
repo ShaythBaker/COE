@@ -757,7 +757,211 @@ for (const m of mealsFromView) {
   }
 }
 
+/**
+ * GET /api/qoutations/:QOUTATION_ID/step1/submitted
+ *
+ * Returns the submitted Step 1 data for a quotation, loaded from the VIEWS
+ * so it is meaningful to the user.
+ *
+ * Response shape:
+ * {
+ *   "QOUTATION_ID": 1,
+ *   "ROUTS": [
+ *     {
+ *       QOUTATION_ROUTE_ID,
+ *       QOUTATION_ID,
+ *       ROUTE_DATE,
+ *       ROUTE_ID, // ORIGINAL_ROUTE_ID from view
+ *       ROUTE_NAME,
+ *       TRANSPORTATION_TYPE_ID,
+ *       TRANSPORTATION_TYPE_NAME,
+ *       TRANSPORTATION_AMOUNT,
+ *       PLACES: [...],
+ *       MEALS: [...],
+ *       EXTRA_SERVICES: [...]
+ *     }
+ *   ]
+ * }
+ */
+async function getQoutationStep1Submitted(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    if (companyId == null) {
+      return res
+        .status(401)
+        .json({ message: "COMPANY_ID not found for current user" });
+    }
+
+    const { QOUTATION_ID } = req.params;
+    const qoutationIdNum = Number(QOUTATION_ID);
+
+    if (!qoutationIdNum || Number.isNaN(qoutationIdNum)) {
+      return res
+        .status(400)
+        .json({ message: "QOUTATION_ID must be a valid number" });
+    }
+
+    // 1) Make sure the quotation exists for this company and is active
+    const qoutations = await dbService.find(
+      {
+        table: QOUTATIONS_TABLE,
+        where: {
+          QOUTATION_ID: qoutationIdNum,
+          ACTIVE_STATUS: 1,
+        },
+        fields: ["*"],
+        limit: 1,
+      },
+      companyId
+    );
+
+    if (!qoutations || qoutations.length === 0) {
+      return res.status(404).json({ message: "Qoutation not found" });
+    }
+
+    // 2) Load the submitted data for step 1 from the views
+
+    // Routes
+    const routesFromView = await dbService.find(
+      {
+        table: QOUTATION_ROUTES_VIEW,
+        where: {
+          QOUTATION_ID: qoutationIdNum,
+        },
+        fields: ["*"], // SELECT *
+        orderBy: "ROUTE_DATE ASC, QOUTATION_ROUTE_ID ASC",
+      },
+      companyId
+    );
+
+    // Places
+    const placesFromView = await dbService.find(
+      {
+        table: QOUTATION_PLACES_VIEW,
+        where: {
+          QOUTATION_ID: qoutationIdNum,
+        },
+        fields: ["*"], // SELECT *
+      },
+      companyId
+    );
+
+    // Meals
+    const mealsFromView = await dbService.find(
+      {
+        table: QOUTATION_MEALS_VIEW,
+        where: {
+          QOUTATION_ID: qoutationIdNum,
+        },
+        fields: ["*"], // SELECT *
+      },
+      companyId
+    );
+
+    // Extra services
+    const extraFromView = await dbService.find(
+      {
+        table: QOUTATION_EXTRA_SERVICES_VIEW,
+        where: {
+          QOUTATION_ID: qoutationIdNum,
+        },
+        fields: ["*"], // SELECT *
+      },
+      companyId
+    );
+
+    // 3) Group PLACES / MEALS / EXTRAS by ROUTE_ID
+    const placesByRoute = {};
+    for (const p of placesFromView) {
+      const rid = p.ROUTE_ID;
+      if (!placesByRoute[rid]) placesByRoute[rid] = [];
+      placesByRoute[rid].push(p);
+    }
+
+    const mealsByRoute = {};
+    for (const m of mealsFromView) {
+      const rid = m.ROUTE_ID;
+      if (!mealsByRoute[rid]) mealsByRoute[rid] = [];
+      mealsByRoute[rid].push(m);
+    }
+
+    const extrasByRoute = {};
+    for (const e of extraFromView) {
+      const rid = e.ROUTE_ID;
+      if (!extrasByRoute[rid]) extrasByRoute[rid] = [];
+      extrasByRoute[rid].push(e);
+    }
+
+    // 4) Build response ROUTS array
+    const responseRoutes = routesFromView.map((r) => {
+      const routeId = r.QOUTATION_ROUTE_ID || r.ROUTE_ID; // view should have QOUTATION_ROUTE_ID
+
+      const routePlaces = (placesByRoute[routeId] || []).map((p) => ({
+        QOUTATION_PLACE_ID: p.QOUTATION_PLACE_ID,
+        QOUTATION_ID: p.QOUTATION_ID,
+        ROUTE_ID: p.ROUTE_ID,
+        ORIGINAL_PLACE_ID: p.ORIGINAL_PLACE_ID,
+        PLACE_NAME: p.PLACE_NAME,
+        ENTRANCE_FEES_PP: p.ENTRANCE_FEES_PP,
+        GUIDE_TYPE: p.GUIDE_TYPE,
+        GUIDE_TYPE_NAME: p.GUIDE_TYPE_NAME,
+        GUIDE_COST: p.GUIDE_COST,
+      }));
+
+      const routeMeals = (mealsByRoute[routeId] || []).map((m) => ({
+        QOUTATION_MEAL_ID: m.QOUTATION_MEAL_ID,
+        QOUTATION_ID: m.QOUTATION_ID,
+        ROUTE_ID: m.ROUTE_ID,
+        ORIGINAL_MEAL_ID: m.ORIGINAL_MEAL_ID,
+        RESAURANT_ID: m.RESAURANT_ID,
+        RESTUARANT_NAME: m.RESTUARANT_NAME,
+        TOTAL_AMOUNT_PP: m.TOTAL_AMOUNT_PP,
+        RESTAURANT_MEAL_DESCRIPTION: m.RESTAURANT_MEAL_DESCRIPTION,
+        RESTAURANT_MEAL_RATE_PP: m.RESTAURANT_MEAL_RATE_PP,
+        RESTAURANT_MEAL_TYPE_ID: m.RESTAURANT_MEAL_TYPE_ID,
+        RESTAURANT_MEAL_TYPE_NAME: m.RESTAURANT_MEAL_TYPE_NAME,
+      }));
+
+      const routeExtras = (extrasByRoute[routeId] || []).map((e) => ({
+        QOUTATION_EXTRA_SERVICE_ID: e.QOUTATION_EXTRA_SERVICE_ID,
+        QOUTATION_ID: e.QOUTATION_ID,
+        ROUTE_ID: e.ROUTE_ID,
+        EXTRA_SERVICE_ID: e.EXTRA_SERVICE_ID,
+        EXTRA_SERVICE_NAME: e.EXTRA_SERVICE_NAME,
+        EXTRA_SERVICE_DESCRIPTION: e.EXTRA_SERVICE_DESCRIPTION,
+        EXTRA_SERVICE_COST_PP: e.EXTRA_SERVICE_COST_PP,
+      }));
+
+      return {
+        // keep aligned with POST payload, but enriched with names
+        QOUTATION_ROUTE_ID: r.QOUTATION_ROUTE_ID,
+        QOUTATION_ID: r.QOUTATION_ID,
+        ROUTE_DATE: r.ROUTE_DATE,
+        ROUTE_ID: r.ORIGINAL_ROUTE_ID || r.ROUTE_ID,
+        ROUTE_NAME: r.ROUTE_NAME,
+        TRANSPORTATION_TYPE_ID: r.TRANSPORTATION_TYPE_ID,
+        TRANSPORTATION_TYPE_NAME: r.TRANSPORTATION_TYPE_NAME,
+        TRANSPORTATION_AMOUNT: r.TRANSPORTATION_AMOUNT,
+        PLACES: routePlaces,
+        MEALS: routeMeals,
+        EXTRA_SERVICES: routeExtras,
+      };
+    });
+
+    // 5) Final response
+    return res.json({
+      QOUTATION_ID: qoutationIdNum,
+      ROUTS: responseRoutes,
+    });
+  } catch (err) {
+    console.error("getQoutationStep1Submitted error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+
 module.exports = {
   getQoutationStep1,
   saveQoutationStep1,
+  getQoutationStep1Submitted,
 };

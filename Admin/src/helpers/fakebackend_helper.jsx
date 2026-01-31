@@ -825,6 +825,13 @@ export const getQoutationByIdApi = (id) =>
 export const getQoutationStep1Api = (id) =>
   get(`${url.GET_QOUTATION_STEP1}/${id}/step1`);
 
+export const getQoutationStep1SubmittedApi = (id) =>
+  get(`${url.GET_QOUTATION_STEP1_SUBMITTED}/${id}/step1/submitted`);
+
+export const saveQoutationStep1Api = (data) =>
+  post(url.SAVE_QOUTATION_STEP1, data);
+
+
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);

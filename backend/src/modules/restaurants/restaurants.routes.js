@@ -2,12 +2,18 @@
 const express = require("express");
 const restaurantsController = require("./restaurants.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
-// const { checkPermission } = require("../../middleware/permissionMiddleware");
 
 const router = express.Router();
 
 // List restaurants (filterable by any column via query params)
 router.get("/", authMiddleware, restaurantsController.listRestaurants);
+
+// NEW: meals lookup (view)
+router.get(
+  "/meals/lookup",
+  authMiddleware,
+  restaurantsController.listRestaurantMealsLookup
+);
 
 // Get single restaurant by ID
 router.get(
