@@ -158,9 +158,143 @@ async function remove(table, where, companyId) {
   return result;
 }
 
+/**
+ * Generic UPSERT (INSERT ... ON DUPLICATE KEY UPDATE)
+ *
+ * @param {string} table
+ * @param {object} data            // columns to insert
+ * @param {string[]} uniqueKeys    // columns that are part of the UNIQUE/PK key
+ * @param {object} options
+ *   - companyId?: any             // auto-inject COMPANY_ID like insert/update
+ *   - connection?: any            // optional mysql2 connection for transactions
+ *   - updateColumns?: string[]    // optional explicit list of columns to update
+//  *   - auditUserId?: any           // if set, manages CREATED_*/
+//  *
+//  * Audit behavior (when auditUserId is provided and table has typical audit cols):
+//  *   - INSERT: adds CREATED_BY = auditUserId, CREATED_ON = NOW()
+//  *   - UPDATE: sets CHANGED_BY = auditUserId, CHANGED_ON = NOW()
+//  *   - Never touches COMPANY_ID / uniqueKeys / CREATED_ON / CREATED_BY on update
+//  */
+async function upsert(table, data, uniqueKeys, options = {}) {
+  const { companyId, connection, updateColumns, auditUserId } = options;
+
+  if (!table) {
+    throw new Error("upsert: table is required");
+  }
+  if (!data || typeof data !== "object") {
+    throw new Error("upsert: data must be a non-null object");
+  }
+  if (!Array.isArray(uniqueKeys) || uniqueKeys.length === 0) {
+    throw new Error("upsert: uniqueKeys must be a non-empty array");
+  }
+
+  // Clone so we don't mutate caller data
+  const insertData = { ...data };
+
+  // Auto-inject COMPANY_ID if not set and companyId was passed
+  if (
+    companyId !== undefined &&
+    companyId !== null &&
+    insertData.COMPANY_ID === undefined
+  ) {
+    insertData.COMPANY_ID = companyId;
+  }
+
+  // Never allow CHANGED_* to be inserted; they are managed on UPDATE only
+  delete insertData.CHANGED_ON;
+  delete insertData.CHANGED_BY;
+
+  const baseKeys = Object.keys(insertData);
+  if (baseKeys.length === 0) {
+    throw new Error("upsert: data must have at least one column");
+  }
+
+  const insertColumns = [...baseKeys];
+  const insertPlaceholders = [];
+  const values = [];
+
+  // Normal insert columns => placeholders + values
+  for (const col of baseKeys) {
+    insertPlaceholders.push("?");
+    values.push(insertData[col]);
+  }
+
+  // Audit: CREATED_ON / CREATED_BY on INSERT, CHANGED_ON / CHANGED_BY on UPDATE
+  const useAudit = auditUserId !== undefined && auditUserId !== null;
+  if (useAudit) {
+    // Ensure CREATED_BY is present in insert columns
+    if (!insertColumns.includes("CREATED_BY")) {
+      insertColumns.push("CREATED_BY");
+      insertPlaceholders.push("?");
+      values.push(auditUserId);
+    }
+
+    // CREATED_ON always set to NOW() on insert
+    if (!insertColumns.includes("CREATED_ON")) {
+      insertColumns.push("CREATED_ON");
+      insertPlaceholders.push("NOW()"); // literal, no value pushed
+    }
+  }
+
+  const quotedInsertCols = insertColumns
+    .map((c) => `\`${c}\``)
+    .join(", ");
+  const insertPlaceholderSql = insertPlaceholders.join(", ");
+
+  // Determine which columns to update
+  const doNotUpdate = new Set([
+    ...uniqueKeys,
+    "COMPANY_ID",
+    "CREATED_ON",
+    "CREATED_BY",
+  ]);
+
+  let colsToUpdate;
+  if (Array.isArray(updateColumns) && updateColumns.length > 0) {
+    colsToUpdate = updateColumns;
+  } else {
+    colsToUpdate = insertColumns.filter((c) => !doNotUpdate.has(c));
+  }
+
+  const updateParts = [];
+
+  for (const col of colsToUpdate) {
+    if (col === "CHANGED_ON" || col === "CHANGED_BY") {
+      // handled explicitly when useAudit is true
+      continue;
+    }
+    updateParts.push(`\`${col}\` = VALUES(\`${col}\`)`);
+  }
+
+  if (useAudit) {
+    // Always set CHANGED_* on UPDATE when auditUserId is provided
+    updateParts.push("`CHANGED_ON` = NOW()");
+    updateParts.push("`CHANGED_BY` = ?");
+    values.push(auditUserId);
+  }
+
+  let sql = `
+    INSERT INTO \`${table}\` (${quotedInsertCols})
+    VALUES (${insertPlaceholderSql})
+  `;
+
+  if (updateParts.length > 0) {
+    sql += `
+      ON DUPLICATE KEY UPDATE
+      ${updateParts.join(", ")}
+    `;
+  }
+
+  const executor = connection || pool;
+  const [result] = await executor.query(sql, values);
+  return result;
+}
+
+
 module.exports = {
   find,
   insert,
   update,
   remove,
+  upsert,
 };

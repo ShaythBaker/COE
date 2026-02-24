@@ -1279,8 +1279,6 @@ async function createHotelSeasonRate(req, res) {
 
     const {
       RATE_FOR_ID,
-      RATE_START_DATE,
-      RATE_END_DATE,
       RATE_AMOUNT,
       RATE_HALF_BOARD_AMOUNT,
       RATE_FULL_BOARD_AMOUNT,
@@ -1382,55 +1380,55 @@ async function createHotelSeasonRate(req, res) {
     let endDate;
 
     // RATE_START_DATE
-    if (
-      RATE_START_DATE !== undefined &&
-      RATE_START_DATE !== null &&
-      RATE_START_DATE !== ""
-    ) {
-      startDate = new Date(RATE_START_DATE);
-      if (Number.isNaN(startDate.getTime())) {
-        return res
-          .status(400)
-          .json({ message: "Invalid RATE_START_DATE format" });
-      }
-    } else {
-      startDate = sStart; // default to season start
-    }
+    // if (
+    //   RATE_START_DATE !== undefined &&
+    //   RATE_START_DATE !== null &&
+    //   RATE_START_DATE !== ""
+    // ) {
+    //   startDate = new Date(RATE_START_DATE);
+    //   if (Number.isNaN(startDate.getTime())) {
+    //     return res
+    //       .status(400)
+    //       .json({ message: "Invalid RATE_START_DATE format" });
+    //   }
+    // } else {
+    //   startDate = sStart; // default to season start
+    // }
 
     // RATE_END_DATE
-    if (
-      RATE_END_DATE !== undefined &&
-      RATE_END_DATE !== null &&
-      RATE_END_DATE !== ""
-    ) {
-      endDate = new Date(RATE_END_DATE);
-      if (Number.isNaN(endDate.getTime())) {
-        return res
-          .status(400)
-          .json({ message: "Invalid RATE_END_DATE format" });
-      }
-    } else {
-      endDate = sEnd; // default to season end
-    }
+    // if (
+    //   RATE_END_DATE !== undefined &&
+    //   RATE_END_DATE !== null &&
+    //   RATE_END_DATE !== ""
+    // ) {
+    //   endDate = new Date(RATE_END_DATE);
+    //   if (Number.isNaN(endDate.getTime())) {
+    //     return res
+    //       .status(400)
+    //       .json({ message: "Invalid RATE_END_DATE format" });
+    //   }
+    // } else {
+    //   endDate = sEnd; // default to season end
+    // }
 
     // Validate date order
-    if (startDate > endDate) {
-      return res.status(400).json({
-        message: "RATE_START_DATE cannot be after RATE_END_DATE",
-      });
-    }
+    // if (startDate > endDate) {
+    //   return res.status(400).json({
+    //     message: "RATE_START_DATE cannot be after RATE_END_DATE",
+    //   });
+    // }
 
     // Enforce within season range (always, since we now always have dates)
-    if (startDate < sStart) {
-      return res.status(400).json({
-        message: "RATE_START_DATE must be within the season dates",
-      });
-    }
-    if (endDate > sEnd) {
-      return res.status(400).json({
-        message: "RATE_END_DATE must be within the season dates",
-      });
-    }
+    // if (startDate < sStart) {
+    //   return res.status(400).json({
+    //     message: "RATE_START_DATE must be within the season dates",
+    //   });
+    // }
+    // if (endDate > sEnd) {
+    //   return res.status(400).json({
+    //     message: "RATE_END_DATE must be within the season dates",
+    //   });
+    // }
 
     const now = new Date();
 
@@ -1439,8 +1437,6 @@ async function createHotelSeasonRate(req, res) {
       {
         SEASON_ID,
         RATE_FOR_ID: rateForId,
-        RATE_START_DATE: startDate, // never null now
-        RATE_END_DATE: endDate, // never null now
         RATE_AMOUNT: amountNumber,
 
         // new optional fields
@@ -1522,8 +1518,6 @@ async function updateHotelSeasonRate(req, res) {
 
     const {
       RATE_FOR_ID,
-      RATE_START_DATE,
-      RATE_END_DATE,
       RATE_AMOUNT,
       RATE_HALF_BOARD_AMOUNT,
       RATE_FULL_BOARD_AMOUNT,
@@ -1602,76 +1596,76 @@ async function updateHotelSeasonRate(req, res) {
       }
     }
 
-    // Dates
-    let newStart = existing.RATE_START_DATE
-      ? new Date(existing.RATE_START_DATE)
-      : null;
-    let newEnd = existing.RATE_END_DATE
-      ? new Date(existing.RATE_END_DATE)
-      : null;
+    // // Dates
+    // let newStart = existing.RATE_START_DATE
+    //   ? new Date(existing.RATE_START_DATE)
+    //   : null;
+    // let newEnd = existing.RATE_END_DATE
+    //   ? new Date(existing.RATE_END_DATE)
+    //   : null;
 
-    if (RATE_START_DATE !== undefined) {
-      if (RATE_START_DATE === null || RATE_START_DATE === "") {
-        newStart = null;
-        updateData.RATE_START_DATE = null;
-      } else {
-        const parsed = new Date(RATE_START_DATE);
-        if (Number.isNaN(parsed.getTime()))
-          return res
-            .status(400)
-            .json({ message: "Invalid RATE_START_DATE format" });
-        newStart = parsed;
-        updateData.RATE_START_DATE = parsed;
-      }
-    }
+    // if (RATE_START_DATE !== undefined) {
+    //   if (RATE_START_DATE === null || RATE_START_DATE === "") {
+    //     newStart = null;
+    //     updateData.RATE_START_DATE = null;
+    //   } else {
+    //     const parsed = new Date(RATE_START_DATE);
+    //     if (Number.isNaN(parsed.getTime()))
+    //       return res
+    //         .status(400)
+    //         .json({ message: "Invalid RATE_START_DATE format" });
+    //     newStart = parsed;
+    //     updateData.RATE_START_DATE = parsed;
+    //   }
+    // }
 
-    if (RATE_END_DATE !== undefined) {
-      if (RATE_END_DATE === null || RATE_END_DATE === "") {
-        newEnd = null;
-        updateData.RATE_END_DATE = null;
-      } else {
-        const parsed = new Date(RATE_END_DATE);
-        if (Number.isNaN(parsed.getTime()))
-          return res
-            .status(400)
-            .json({ message: "Invalid RATE_END_DATE format" });
-        newEnd = parsed;
-        updateData.RATE_END_DATE = parsed;
-      }
-    }
+    // if (RATE_END_DATE !== undefined) {
+    //   if (RATE_END_DATE === null || RATE_END_DATE === "") {
+    //     newEnd = null;
+    //     updateData.RATE_END_DATE = null;
+    //   } else {
+    //     const parsed = new Date(RATE_END_DATE);
+    //     if (Number.isNaN(parsed.getTime()))
+    //       return res
+    //         .status(400)
+    //         .json({ message: "Invalid RATE_END_DATE format" });
+    //     newEnd = parsed;
+    //     updateData.RATE_END_DATE = parsed;
+    //   }
+    // }
 
-    if (newStart && newEnd && newStart > newEnd) {
-      return res
-        .status(400)
-        .json({ message: "RATE_START_DATE cannot be after RATE_END_DATE" });
-    }
+    // if (newStart && newEnd && newStart > newEnd) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "RATE_START_DATE cannot be after RATE_END_DATE" });
+    // }
 
     // enforce within season range if season has dates
-    const sStart = season.SEASON_START_DATE
-      ? new Date(season.SEASON_START_DATE)
-      : null;
-    const sEnd = season.SEASON_END_DATE
-      ? new Date(season.SEASON_END_DATE)
-      : null;
+    // const sStart = season.SEASON_START_DATE
+    //   ? new Date(season.SEASON_START_DATE)
+    //   : null;
+    // const sEnd = season.SEASON_END_DATE
+    //   ? new Date(season.SEASON_END_DATE)
+    //   : null;
 
-    if (sStart && sEnd) {
-      if (newStart && newStart < sStart)
-        return res
-          .status(400)
-          .json({ message: "RATE_START_DATE must be within the season dates" });
-      if (newEnd && newEnd > sEnd)
-        return res
-          .status(400)
-          .json({ message: "RATE_END_DATE must be within the season dates" });
-      if (!newStart && newEnd && newEnd < sStart)
-        return res
-          .status(400)
-          .json({ message: "RATE_END_DATE must be within the season dates" });
-      if (newStart && !newEnd && newStart > sEnd)
-        return res
-          .status(400)
-          .json({ message: "RATE_START_DATE must be within the season dates" });
-    }
+    // if (sStart && sEnd) {
+    //   if (newStart && newStart < sStart)
+    //     return res
+    //       .status(400)
+    //       .json({ message: "RATE_START_DATE must be within the season dates" });
+    //   if (newEnd && newEnd > sEnd)
+    //     return res
+    //       .status(400)
+    //       .json({ message: "RATE_END_DATE must be within the season dates" });
+    //   if (!newStart && newEnd && newEnd < sStart)
+    //     return res
+    //       .status(400)
+    //       .json({ message: "RATE_END_DATE must be within the season dates" });
+    //   if (newStart && !newEnd && newStart > sEnd)
+    //     return res
+    //       .status(400)
+    //       .json({ message: "RATE_START_DATE must be within the season dates" });
+    // }
 
     const now = new Date();
     updateData.CHANGED_ON = now;
@@ -1690,8 +1684,7 @@ async function updateHotelSeasonRate(req, res) {
         r.RATE_ID,
         r.SEASON_ID,
         r.RATE_FOR_ID,
-        r.RATE_START_DATE,
-        r.RATE_END_DATE,
+        
         r.RATE_AMOUNT,
         r.RATE_HALF_BOARD_AMOUNT,
         r.RATE_FULL_BOARD_AMOUNT,
@@ -1881,8 +1874,6 @@ async function getHotelSeasonsWithRates(req, res) {
           r.RATE_ID,
           r.SEASON_ID,
           r.RATE_FOR_ID,
-          r.RATE_START_DATE,
-          r.RATE_END_DATE,
           r.RATE_AMOUNT,
           r.RATE_HALF_BOARD_AMOUNT,
           r.RATE_FULL_BOARD_AMOUNT,
@@ -1899,7 +1890,7 @@ async function getHotelSeasonsWithRates(req, res) {
          AND li.COMPANY_ID = ?
         WHERE r.COMPANY_ID = ?
           AND r.SEASON_ID IN (${placeholders})
-        ORDER BY r.SEASON_ID ASC, r.RATE_START_DATE ASC, r.RATE_ID ASC
+        ORDER BY r.SEASON_ID ASC, r.RATE_ID ASC
       `;
 
       const [rateRows] = await pool.query(ratesSql, [

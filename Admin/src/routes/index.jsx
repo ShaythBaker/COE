@@ -66,7 +66,8 @@ import RequestsView from "../pages/QuickActions/RequestsView";
 // Quoteations
 import QuotationsList from "../pages/Quotations/QuotationsList";
 import QuotationWizard from "../pages/Quotations/QuotationWizard";
-
+import QuotationView from "../pages/Quotations/QuotationView";
+import QuotationShare from "../pages/Quotations/QuotationShare";
 
 // // File Manager
 import FileManager from "../pages/FileManager/index";
@@ -247,7 +248,7 @@ const authProtectedRoutes = [
   { path: "/blog", component: <Blog /> },
   { path: "/dashboard-job", component: <DashboardJob /> },
 
-  // // HR
+  // HR
 
   {
     path: "/hr/users/create",
@@ -422,6 +423,11 @@ const authProtectedRoutes = [
   // Quotations
   { path: "/quotations", component: <QuotationsList /> },
   { path: "/quotations/:id", component: <QuotationWizard /> },
+  { path: "/quotations/details/:qoutationId", component: <QuotationView /> },
+  {
+    path: "/quotations/:qoutationId/share",
+    component: <QuotationShare />,
+  },
 
   //   //Crypto
   { path: "/crypto-wallet", component: <CryptoWallet /> },

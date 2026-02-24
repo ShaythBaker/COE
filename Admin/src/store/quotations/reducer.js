@@ -13,8 +13,9 @@ const INIT_STATE = {
   step1Submitted: null,
   hasSubmittedStep1: false,
   loadingStep1Submitted: false,
-
   savingStep1: false,
+  details: null,
+  loadingDetails: false,
 };
 
 const Quotations = (state = INIT_STATE, action) => {
@@ -62,33 +63,41 @@ const Quotations = (state = INIT_STATE, action) => {
     case types.GET_QOUTATION_STEP1_FAIL:
       return { ...state, loadingStep1: false, error: action.payload };
 
-      case types.GET_QOUTATION_STEP1_SUBMITTED:
-  return { ...state, loadingStep1Submitted: true, error: null };
+    case types.GET_QOUTATION_STEP1_SUBMITTED:
+      return { ...state, loadingStep1Submitted: true, error: null };
 
-case types.GET_QOUTATION_STEP1_SUBMITTED_SUCCESS:
-  return {
-    ...state,
-    loadingStep1Submitted: false,
-    step1Submitted: action.payload || null,
-    hasSubmittedStep1: !!action.payload,
-  };
+    case types.GET_QOUTATION_STEP1_SUBMITTED_SUCCESS:
+      return {
+        ...state,
+        loadingStep1Submitted: false,
+        step1Submitted: action.payload || null,
+        hasSubmittedStep1: !!action.payload,
+      };
 
-case types.GET_QOUTATION_STEP1_SUBMITTED_FAIL:
-  return { ...state, loadingStep1Submitted: false, error: action.payload };
+    case types.GET_QOUTATION_STEP1_SUBMITTED_FAIL:
+      return { ...state, loadingStep1Submitted: false, error: action.payload };
 
-case types.SAVE_QOUTATION_STEP1:
-  return { ...state, savingStep1: true, error: null, successMessage: null };
+    case types.SAVE_QOUTATION_STEP1:
+      return { ...state, savingStep1: true, error: null, successMessage: null };
 
-case types.SAVE_QOUTATION_STEP1_SUCCESS:
-  return {
-    ...state,
-    savingStep1: false,
-    successMessage: action.payload?.message || "Step 1 saved successfully",
-  };
+    case types.SAVE_QOUTATION_STEP1_SUCCESS:
+      return {
+        ...state,
+        savingStep1: false,
+        successMessage: action.payload?.message || "Step 1 saved successfully",
+      };
 
-case types.SAVE_QOUTATION_STEP1_FAIL:
-  return { ...state, savingStep1: false, error: action.payload };
+    case types.SAVE_QOUTATION_STEP1_FAIL:
+      return { ...state, savingStep1: false, error: action.payload };
 
+    case types.GET_QOUTATION_DETAILS:
+      return { ...state, loadingDetails: true, error: null };
+
+    case types.GET_QOUTATION_DETAILS_SUCCESS:
+      return { ...state, loadingDetails: false, details: action.payload };
+
+    case types.GET_QOUTATION_DETAILS_FAIL:
+      return { ...state, loadingDetails: false, error: action.payload };
 
     default:
       return state;

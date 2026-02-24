@@ -33,8 +33,8 @@ export const getAttachmentUrlApi = (fileId) =>
 export const getUserAttachmentsApi = (fileCategory, userId) =>
   get(
     `${url.GET_ATTACHMENT_URL}?FILE_CATEGORY=${encodeURIComponent(
-      fileCategory
-    )}&USER_ID=${encodeURIComponent(userId)}`
+      fileCategory,
+    )}&USER_ID=${encodeURIComponent(userId)}`,
   );
 
 // Register Method
@@ -392,20 +392,20 @@ export const getHotelSeasonsWithRates = (hotelId) =>
 export const createHotelSeasonRateApi = (hotelId, seasonId, data) =>
   post(
     `${url.HOTEL_SEASON_RATES_BASE}/${hotelId}/seasons/${seasonId}/rates`,
-    data
+    data,
   );
 
 // PUT /api/hotels/:HOTEL_ID/seasons/:SEASON_ID/rates/:RATE_ID
 export const updateHotelSeasonRateApi = (hotelId, seasonId, rateId, data) =>
   put(
     `${url.HOTEL_SEASON_RATES_BASE}/${hotelId}/seasons/${seasonId}/rates/${rateId}`,
-    data
+    data,
   );
 
 // DELETE /api/hotels/:HOTEL_ID/seasons/:SEASON_ID/rates/:RATE_ID
 export const deleteHotelSeasonRateApi = (hotelId, seasonId, rateId) =>
   del(
-    `${url.HOTEL_SEASON_RATES_BASE}/${hotelId}/seasons/${seasonId}/rates/${rateId}`
+    `${url.HOTEL_SEASON_RATES_BASE}/${hotelId}/seasons/${seasonId}/rates/${rateId}`,
   );
 
 // ========================
@@ -420,24 +420,24 @@ export const getHotelAdditionalServicesApi = (hotelId) =>
 export const createHotelAdditionalServiceApi = (hotelId, data) =>
   post(
     `${url.HOTEL_ADDITIONAL_SERVICES_BASE}/${hotelId}/additional-services`,
-    data
+    data,
   );
 
 // UPDATE: PUT /api/hotels/:HOTEL_ID/additional-services/:ADDITIONAL_SERVICE_ID
 export const updateHotelAdditionalServiceApi = (
   hotelId,
   additionalServiceId,
-  data
+  data,
 ) =>
   put(
     `${url.HOTEL_ADDITIONAL_SERVICES_BASE}/${hotelId}/additional-services/${additionalServiceId}`,
-    data
+    data,
   );
 
 // DELETE: DELETE /api/hotels/:HOTEL_ID/additional-services/:ADDITIONAL_SERVICE_ID
 export const deleteHotelAdditionalServiceApi = (hotelId, additionalServiceId) =>
   del(
-    `${url.HOTEL_ADDITIONAL_SERVICES_BASE}/${hotelId}/additional-services/${additionalServiceId}`
+    `${url.HOTEL_ADDITIONAL_SERVICES_BASE}/${hotelId}/additional-services/${additionalServiceId}`,
   );
 
 // ====================
@@ -445,16 +445,19 @@ export const deleteHotelAdditionalServiceApi = (hotelId, additionalServiceId) =>
 // ====================
 
 export const getClients = (activeStatus) => {
-  if (activeStatus === null || activeStatus === undefined || activeStatus === "") {
+  if (
+    activeStatus === null ||
+    activeStatus === undefined ||
+    activeStatus === ""
+  ) {
     return get(url.GET_CLIENTS); // "/api/clients"
   }
 
   // ✅ backend expects ACTIVE_STATUS
   return get(
-    `${url.GET_CLIENTS}?ACTIVE_STATUS=${encodeURIComponent(activeStatus)}`
+    `${url.GET_CLIENTS}?ACTIVE_STATUS=${encodeURIComponent(activeStatus)}`,
   );
 };
-
 
 export const getClientById = (clientId) =>
   get(`${url.GET_CLIENT_BY_ID}/${clientId}`);
@@ -572,7 +575,7 @@ export const deleteTransportationVehicleApi = (vehicleId) =>
 
 export const getTransportationCompanyFees = (
   transportationCompanyId,
-  activeStatus
+  activeStatus,
 ) => {
   const base = `${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`;
 
@@ -591,7 +594,7 @@ export const getTransportationCompanyFees = (
 export const createTransportationCompanyFee = (transportationCompanyId, data) =>
   post(
     `${url.GET_TRANSPORTATION_COMPANY_FEES}/${transportationCompanyId}/fees`,
-    data
+    data,
   );
 
 // 3) Get fee by id
@@ -803,7 +806,6 @@ export const updateRestaurantMealApi = (restaurantId, mealId, data) =>
 export const deleteRestaurantMealApi = (restaurantId, mealId) =>
   del(`/api/restaurants/${restaurantId}/meals/${mealId}`);
 
-
 // ========================
 // QOUTATIONS / QUOTATIONS
 // ========================
@@ -831,13 +833,41 @@ export const getQoutationStep1SubmittedApi = (id) =>
 export const saveQoutationStep1Api = (data) =>
   post(url.SAVE_QOUTATION_STEP1, data);
 
+// GET /api/qoutations/:QOUTATION_ID/details
+export const getQoutationDetailsApi = (id) =>
+  get(`/api/qoutations/${id}/details`);
+
+// ========================
+// QUOTATIONS - STEP 3 (EXTRA SERVICES)
+// ========================
+
+// GET /api/extra-services
+export const getExtraServicesApi = () => get(url.EXTRA_SERVICES);
+
+// GET /api/qoutations/step3/:QOUTATION_ID/extra-services
+export const getQuotationStep3ExtraServicesApi = (qoutationId) =>
+  get(
+    `${url.QUOTATION_STEP3_EXTRA_SERVICES_BASE}/${qoutationId}/extra-services`,
+  );
+
+// POST /api/qoutations/step3/:QOUTATION_ID/extra-services
+export const createQuotationStep3ExtraServiceApi = (qoutationId, payload) =>
+  post(
+    `${url.QUOTATION_STEP3_EXTRA_SERVICES_BASE}/${qoutationId}/extra-services`,
+    payload,
+  );
+
+// DELETE /api/qoutations/step3/extra-services/:EXTRA_SERVICE_ID
+export const deleteQuotationStep3ExtraServiceApi = (qoutationExtraServiceId) =>
+  del(`${url.QUOTATION_STEP3_EXTRA_SERVICE_DELETE_BASE}/${qoutationExtraServiceId}`);
+
+
 
 
 // get Products
 export const getProducts = () => get(url.GET_PRODUCTS);
 
-
-//===== 
+//=====
 
 // get Product detail
 export const getProductDetail = (id) =>

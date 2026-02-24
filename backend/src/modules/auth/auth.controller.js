@@ -181,7 +181,7 @@ async function login(req, res) {
       return res.status(401).json({
         status: false,
         code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password",
+        message: "We couldn't authenticate you please try again",
       });
     }
 

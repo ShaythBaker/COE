@@ -30,6 +30,7 @@ import Restaurants from "./restaurants/reducer";
 import RestaurantMeals from "./restaurantMeals/reducer";
 
 import Quotations from "./quotations/reducer";
+import quotationStep3Reducer from "./quotationStep3/reducer";
 
 //E-commerce
 import ecommerce from "./e-commerce/reducer";
@@ -115,6 +116,7 @@ const rootReducer = combineReducers({
   Restaurants,
   RestaurantMeals,
   Quotations,
+  quotationStep3: quotationStep3Reducer,
 });
 
 export default rootReducer;

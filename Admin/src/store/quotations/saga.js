@@ -9,6 +9,7 @@ import {
   getQoutationStep1Api,
   getQoutationStep1SubmittedApi,
   saveQoutationStep1Api,
+  getQoutationDetailsApi,
 } from "../../helpers/fakebackend_helper";
 
 const normalizeErr = (e) =>
@@ -111,12 +112,26 @@ function* onSaveQoutationStep1({ payload }) {
   }
 }
 
+function* onGetQoutationDetails({ payload }) {
+  try {
+    const id = payload?.id;
+    if (!id) throw new Error("Missing quotation id");
+
+    const res = yield call(getQoutationDetailsApi, id);
+    yield put(actions.getQoutationDetailsSuccess(res));
+  } catch (e) {
+    yield put(actions.getQoutationDetailsFail(normalizeErr(e)));
+  }
+}
+
+
 export default function* quotationsSaga() {
   yield takeLatest(types.GET_QOUTATIONS, onGetQoutations);
   yield takeLatest(types.CREATE_QOUTATION, onCreateQoutation);
 
   yield takeLatest(types.GET_QOUTATION_BY_ID, onGetQoutationById);
   yield takeLatest(types.GET_QOUTATION_STEP1, onGetQoutationStep1);
+  yield takeLatest(types.GET_QOUTATION_DETAILS, onGetQoutationDetails);
 
   yield takeLatest(
     types.GET_QOUTATION_STEP1_SUBMITTED,

@@ -16,6 +16,12 @@ import {
   TabPane,
   Table,
   Input,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  UncontrolledPopover,
+  PopoverHeader,
+  PopoverBody,
 } from "reactstrap";
 import classnames from "classnames";
 import { Link, useParams } from "react-router-dom";
@@ -25,6 +31,9 @@ import { createSelector } from "reselect";
 import Breadcrumb from "../../components/Common/Breadcrumb";
 import RequireModule from "../../components/auth/RequireModule";
 import ThemeSelect from "../../components/Common/ThemeSelect";
+import QuotationStep2Accommodations from "./components/QuotationStep2Accommodations";
+import QuotationStep3ExtraServices from "./components/QuotationStep3ExtraServices";
+import QuotationStep4Summary from "./components/QuotationStep4Summary";
 
 import { get } from "/src/helpers/api_helper";
 
@@ -54,7 +63,7 @@ const quotationDetailsSelector = createSelector(
     successMessage: s?.successMessage || null,
 
     error: s?.error || null,
-  })
+  }),
 );
 
 const toYmd = (dateObj) => {
@@ -109,6 +118,10 @@ const QuotationWizardInner = () => {
     error,
   } = useSelector(quotationDetailsSelector);
 
+  const step3State = useSelector((state) => state?.quotationStep3 || {});
+  const step3QuotationExtraServices =
+    step3State?.quotationExtraServices || step3State?.quotationExtraServicesRaw;
+
   const hasSubmittedStep1 = !!step1Submitted?.QOUTATION_ID;
 
   const [activeTab, setactiveTab] = useState(1);
@@ -117,6 +130,13 @@ const QuotationWizardInner = () => {
   const [isEditingStep1, setIsEditingStep1] = useState(false);
   const [expandedDays, setExpandedDays] = useState({}); // { [dayNo]: boolean }
   const [daysRows, setDaysRows] = useState([]);
+
+  // ===== Step 1 UX: hover preview + modal details (no API changes) =====
+  const [dayDetailsModalOpen, setDayDetailsModalOpen] = useState(false);
+  const [dayDetailsModalDayNo, setDayDetailsModalDayNo] = useState(null);
+
+  // ===== Step 2 (Accommodations) =====
+  const [step2Hotels, setStep2Hotels] = useState([]);
 
   // ===== Guide types =====
   const [guideTypes, setGuideTypes] = useState([]);
@@ -131,6 +151,13 @@ const QuotationWizardInner = () => {
   const [mealsLookup, setMealsLookup] = useState(null); // { restaurants: [] }
   const [loadingMealsLookup, setLoadingMealsLookup] = useState(false);
   const [mealsLookupLoaded, setMealsLookupLoaded] = useState(false);
+
+  // ===== Extra Services lookup (NEW) =====
+  const [extraServicesLookup, setExtraServicesLookup] = useState([]);
+  const [loadingExtraServicesLookup, setLoadingExtraServicesLookup] =
+    useState(false);
+  const [extraServicesLookupLoaded, setExtraServicesLookupLoaded] =
+    useState(false);
 
   const clientCountryId =
     details?.CLIENT_COUNTRY_ID ??
@@ -148,6 +175,15 @@ const QuotationWizardInner = () => {
 
   const arrivingDate =
     q?.QOUTATION_ARRIVING_DATE || details?.QOUTATION_ARRIVING_DATE || "";
+
+  // Step 2 requires both ARRIVING_DATE and DEPARTURE_DATE.
+  // Prefer the saved quotation header dates; fallback to arrivingDate + numberOfDays.
+  const departingDate =
+    q?.QOUTATION_DEPARTURING_DATE ||
+    details?.QOUTATION_DEPARTURING_DATE ||
+    (arrivingDate && numberOfDays
+      ? addDays(arrivingDate, Number(numberOfDays) || 0)
+      : "");
 
   function toggleTab(tab) {
     if (activeTab !== tab) {
@@ -208,7 +244,7 @@ const QuotationWizardInner = () => {
   const feeTypeMap = useMemo(() => {
     const map = new Map();
     (transportation || []).forEach((t) =>
-      map.set(String(t.TRANSPORTATION_FEE_TYPE), t)
+      map.set(String(t.TRANSPORTATION_FEE_TYPE), t),
     );
     return map;
   }, [transportation]);
@@ -217,7 +253,7 @@ const QuotationWizardInner = () => {
     const t = feeTypeMap.get(String(feeTypeId));
     const opts = t?.OPTIONS || [];
     const found = opts.find(
-      (o) => String(o.TRANSPORTATION_FEE_VECHLE_TYPE) === String(vehicleTypeId)
+      (o) => String(o.TRANSPORTATION_FEE_VECHLE_TYPE) === String(vehicleTypeId),
     );
     return found?.TRANSPORTATION_FEE_AMOUNT ?? "";
   };
@@ -228,7 +264,7 @@ const QuotationWizardInner = () => {
         value: x.LIST_ITEM_ID,
         label: x.ITEM_NAME,
       })),
-    [guideTypes]
+    [guideTypes],
   );
 
   const routeOptions = useMemo(
@@ -237,7 +273,7 @@ const QuotationWizardInner = () => {
         value: r.ROUTE_ID,
         label: r.ROUTE_NAME,
       })),
-    [routes]
+    [routes],
   );
 
   const transportFeeTypeOptions = useMemo(
@@ -246,7 +282,7 @@ const QuotationWizardInner = () => {
         value: t.TRANSPORTATION_FEE_TYPE,
         label: t.TRANSPORTATION_FEE_TYPE_NAME,
       })),
-    [transportation]
+    [transportation],
   );
 
   const vehicleOptionsForFeeType = (feeTypeId) => {
@@ -363,7 +399,7 @@ const QuotationWizardInner = () => {
   const restaurantById = useMemo(() => {
     const map = new Map();
     (mealsLookup?.restaurants || []).forEach((r) =>
-      map.set(String(r.RESTAURANT_ID), r)
+      map.set(String(r.RESTAURANT_ID), r),
     );
     return map;
   }, [mealsLookup]);
@@ -382,7 +418,7 @@ const QuotationWizardInner = () => {
     const r = restaurantById.get(String(restaurantId));
     const types = r?.RESTAURANT_MEAL_TYPES || [];
     const t = types.find(
-      (x) => String(x.RESTAURANT_MEAL_TYPE_ID) === String(mealTypeId)
+      (x) => String(x.RESTAURANT_MEAL_TYPE_ID) === String(mealTypeId),
     );
     const meals = t?.MEALS || [];
     return meals.map((m) => ({
@@ -392,6 +428,32 @@ const QuotationWizardInner = () => {
       active: m.ACTIVE_STATUS,
     }));
   };
+
+  // ===== Extra Services Lookup (NEW) =====
+  const ensureExtraServicesLoaded = async () => {
+    if (extraServicesLookupLoaded || loadingExtraServicesLookup) return;
+
+    try {
+      setLoadingExtraServicesLookup(true);
+      const res = await get("/api/extra-services");
+      const data = res?.data || res || [];
+      setExtraServicesLookup(Array.isArray(data) ? data : []);
+      setExtraServicesLookupLoaded(true);
+    } catch (e) {
+      setExtraServicesLookup([]);
+      setExtraServicesLookupLoaded(true);
+    } finally {
+      setLoadingExtraServicesLookup(false);
+    }
+  };
+
+  const extraServicesOptions = useMemo(() => {
+    return (extraServicesLookup || []).map((s) => ({
+      value: s.EXTRA_SERVICE_ID,
+      label: s.EXTRA_SERVICE_NAME,
+      cost: s.EXTRA_SERVICE_COST_PP,
+    }));
+  }, [extraServicesLookup]);
 
   // Build initial days always from calculations then overlay submitted
   useEffect(() => {
@@ -403,12 +465,22 @@ const QuotationWizardInner = () => {
     const rows = Array.from({ length: Number(numberOfDays) }, (_, idx) => {
       const date = addDays(arrivingDate, idx);
 
+      // Overlay submitted (saved) values if they exist for the same date
+      const sub = submittedByDate.get(String(date));
+
       const base = {
         dayNo: idx + 1,
         date,
         routeId: "",
         feeTypeId: "",
-        vehicleTypeId: "",
+        vehicleTypeId: sub
+          ? (sub.TRANSPORTATION_FEE_VECHLE_TYPE ??
+            sub.VEHICLE_TYPE_ID ??
+            sub.VEHICLE_TYPE ??
+            sub.TRANSPORTATION_VECHLE_TYPE ??
+            sub.TRANSPORTATION_VEHICLE_TYPE_ID ??
+            "")
+          : "",
         amount: "",
 
         places: [],
@@ -418,7 +490,6 @@ const QuotationWizardInner = () => {
         isAdjusted: false,
       };
 
-      const sub = submittedByDate.get(String(date));
       if (!sub) return base;
 
       const subPlaces = (sub.PLACES || []).map((p) => ({
@@ -452,7 +523,13 @@ const QuotationWizardInner = () => {
         ...base,
         routeId: sub.ROUTE_ID ?? "",
         feeTypeId: sub.TRANSPORTATION_TYPE_ID ?? "",
-        vehicleTypeId: "",
+        vehicleTypeId:
+          sub.TRANSPORTATION_FEE_VECHLE_TYPE ??
+          sub.VEHICLE_TYPE_ID ??
+          sub.VEHICLE_TYPE ??
+          sub.TRANSPORTATION_VECHLE_TYPE ??
+          sub.TRANSPORTATION_VEHICLE_TYPE_ID ??
+          "",
         amount: sub.TRANSPORTATION_AMOUNT ?? "",
         places: subPlaces,
         meals: subMeals,
@@ -467,6 +544,50 @@ const QuotationWizardInner = () => {
 
   const toggleDayExpand = (dayNo) => {
     setExpandedDays((prev) => ({ ...prev, [dayNo]: !prev[dayNo] }));
+  };
+
+  const openDayDetailsModal = (dayNo) => {
+    setDayDetailsModalDayNo(dayNo);
+    setDayDetailsModalOpen(true);
+  };
+
+  const closeDayDetailsModal = () => {
+    setDayDetailsModalOpen(false);
+  };
+
+  const getDaySummary = (row) => {
+    const placesCount = Array.isArray(row?.places) ? row.places.length : 0;
+    const mealsCount = Array.isArray(row?.meals) ? row.meals.length : 0;
+    const extrasCount = Array.isArray(row?.extraServices)
+      ? row.extraServices.length
+      : 0;
+
+    const entranceTotal = (row?.places || []).reduce(
+      (acc, p) => acc + (Number(p?.ENTRANCE_FEES_PP) || 0),
+      0,
+    );
+    const guidesTotal = (row?.places || []).reduce(
+      (acc, p) => acc + (Number(p?.GUIDE_COST) || 0),
+      0,
+    );
+    const mealsTotal = (row?.meals || []).reduce(
+      (acc, m) => acc + (Number(m?.TOTAL_AMOUNT_PP) || 0),
+      0,
+    );
+    const extrasTotal = (row?.extraServices || []).reduce(
+      (acc, e) => acc + (Number(e?.EXTRA_SERVICE_COST_PP) || 0),
+      0,
+    );
+
+    return {
+      placesCount,
+      mealsCount,
+      extrasCount,
+      entranceTotal,
+      guidesTotal,
+      mealsTotal,
+      extrasTotal,
+    };
   };
 
   const onChangeRow = (rowIndex, field, value) => {
@@ -668,7 +789,7 @@ const QuotationWizardInner = () => {
 
         const typeLabel =
           mealTypeOptionsForRestaurant(m.RESAURANT_ID).find(
-            (o) => String(o.value) === String(value)
+            (o) => String(o.value) === String(value),
           )?.label || "";
         m.RESTAURANT_MEAL_TYPE_NAME = typeLabel;
 
@@ -684,7 +805,7 @@ const QuotationWizardInner = () => {
 
         const mealOpt = mealOptionsForRestaurantType(
           m.RESAURANT_ID,
-          m.RESTAURANT_MEAL_TYPE_ID
+          m.RESTAURANT_MEAL_TYPE_ID,
         ).find((o) => String(o.value) === String(value));
 
         m.RESTAURANT_MEAL_DESCRIPTION = mealOpt?.label || "";
@@ -704,8 +825,10 @@ const QuotationWizardInner = () => {
     });
   };
 
-  // ---- Extra Services handlers (unchanged) ----
-  const addExtraServiceRow = (rowIndex) => {
+  // ---- Extra Services handlers (UPDATED ONLY HERE) ----
+  const addExtraServiceRow = async (rowIndex) => {
+    await ensureExtraServicesLoaded();
+
     setDaysRows((prev) => {
       const next = [...prev];
       const r = { ...next[rowIndex] };
@@ -713,6 +836,7 @@ const QuotationWizardInner = () => {
       extras.push({
         EXTRA_SERVICE_ID: "",
         EXTRA_SERVICE_COST_PP: "",
+        EXTRA_SERVICE_NAME: "",
       });
       r.extraServices = extras;
       next[rowIndex] = r;
@@ -738,7 +862,23 @@ const QuotationWizardInner = () => {
       const r = { ...next[rowIndex] };
       const extras = [...(r.extraServices || [])];
       const e = { ...(extras[exIndex] || {}) };
-      e[field] = value;
+
+      if (field === "EXTRA_SERVICE_ID") {
+        e.EXTRA_SERVICE_ID = value;
+
+        const selected = (extraServicesOptions || []).find(
+          (o) => String(o.value) === String(value),
+        );
+
+        e.EXTRA_SERVICE_NAME = selected?.label || "";
+        // Auto fill cost from API (still editable)
+        e.EXTRA_SERVICE_COST_PP = selected?.cost ?? "";
+      } else if (field === "EXTRA_SERVICE_COST_PP") {
+        e.EXTRA_SERVICE_COST_PP = value;
+      } else {
+        e[field] = value;
+      }
+
       extras[exIndex] = e;
       r.extraServices = extras;
       next[rowIndex] = r;
@@ -788,7 +928,6 @@ const QuotationWizardInner = () => {
   };
 
   const step1Loading = loadingStep1 || loadingStep1Submitted;
-  const dimTable = hasSubmittedStep1 && !isEditingStep1;
 
   return (
     <div className="page-content">
@@ -951,8 +1090,8 @@ const QuotationWizardInner = () => {
                               }
                             >
                               {hasSubmittedStep1
-                                ? "Submitted"
-                                : "Not submitted yet"}
+                                ? "Step 1 saved"
+                                : "Step 1 not saved yet"}
                             </Badge>
                           </Col>
                         </Row>
@@ -961,7 +1100,8 @@ const QuotationWizardInner = () => {
                           <Col className="d-flex justify-content-end gap-2">
                             {hasSubmittedStep1 && !isEditingStep1 ? (
                               <Button
-                                color="warning"
+                                color="primary"
+                                size="sm"
                                 onClick={() => setIsEditingStep1(true)}
                               >
                                 Edit Step 1
@@ -986,15 +1126,7 @@ const QuotationWizardInner = () => {
                             ) : null}
                           </Col>
                         </Row>
-
-                        <div
-                          className="table-responsive"
-                          style={
-                            dimTable
-                              ? { opacity: 0.55, pointerEvents: "none" }
-                              : undefined
-                          }
-                        >
+                        <div className="table-responsive">
                           <Table className="table table-bordered align-middle">
                             <thead className="table-light">
                               <tr>
@@ -1013,25 +1145,26 @@ const QuotationWizardInner = () => {
                             <tbody>
                               {daysRows.map((r, idx) => {
                                 const vehicleOptions = vehicleOptionsForFeeType(
-                                  r.feeTypeId
+                                  r.feeTypeId,
                                 );
 
                                 const selectedRoute =
                                   routeOptions.find(
-                                    (o) => String(o.value) === String(r.routeId)
+                                    (o) =>
+                                      String(o.value) === String(r.routeId),
                                   ) || null;
 
                                 const selectedFeeType =
                                   transportFeeTypeOptions.find(
                                     (o) =>
-                                      String(o.value) === String(r.feeTypeId)
+                                      String(o.value) === String(r.feeTypeId),
                                   ) || null;
 
                                 const selectedVehicle =
                                   vehicleOptions.find(
                                     (o) =>
                                       String(o.value) ===
-                                      String(r.vehicleTypeId)
+                                      String(r.vehicleTypeId),
                                   ) || null;
 
                                 const isOpen = !!expandedDays[r.dayNo];
@@ -1041,7 +1174,125 @@ const QuotationWizardInner = () => {
                                 return (
                                   <React.Fragment key={`${r.dayNo}-${r.date}`}>
                                     <tr>
-                                      <td>{r.dayNo}</td>
+                                      <td>
+                                        <div className="d-flex align-items-center gap-2">
+                                          <span
+                                            id={`dayHover-${r.dayNo}`}
+                                            className="fw-semibold"
+                                          >
+                                            {r.dayNo}
+                                          </span>
+                                          <i
+                                            className="bx bx-info-circle text-muted"
+                                            id={`dayHoverIcon-${r.dayNo}`}
+                                            style={{ cursor: "help" }}
+                                          />
+                                          <UncontrolledPopover
+                                            trigger="hover"
+                                            placement="right"
+                                            target={`dayHoverIcon-${r.dayNo}`}
+                                            fade={false}
+                                          >
+                                            <PopoverHeader>
+                                              Day {r.dayNo} • {r.date || "-"}
+                                            </PopoverHeader>
+                                            <PopoverBody>
+                                              {(() => {
+                                                const s = getDaySummary(r);
+                                                return (
+                                                  <div className="small">
+                                                    <div className="mb-1">
+                                                      <strong>Route:</strong>{" "}
+                                                      {selectedRoute?.label ||
+                                                        "-"}
+                                                    </div>
+                                                    <div className="mb-1">
+                                                      <strong>
+                                                        Transportation:
+                                                      </strong>{" "}
+                                                      {selectedFeeType?.label ||
+                                                        "-"}
+                                                    </div>
+                                                    <div className="mb-1">
+                                                      <strong>Vehicle:</strong>{" "}
+                                                      {selectedVehicle?.label ||
+                                                        "-"}
+                                                    </div>
+                                                    <div className="mb-2">
+                                                      <strong>Amount:</strong>{" "}
+                                                      {r.amount ?? "-"}
+                                                    </div>
+
+                                                    <div className="d-flex flex-wrap gap-2">
+                                                      <Badge color="secondary">
+                                                        Places: {s.placesCount}
+                                                      </Badge>
+                                                      <Badge color="secondary">
+                                                        Meals: {s.mealsCount}
+                                                      </Badge>
+                                                      <Badge color="secondary">
+                                                        Extras: {s.extrasCount}
+                                                      </Badge>
+                                                    </div>
+
+                                                    <hr className="my-2" />
+
+                                                    <div className="d-flex flex-column gap-1">
+                                                      <div>
+                                                        <strong>
+                                                          Entrance total:
+                                                        </strong>{" "}
+                                                        {Number(
+                                                          s.entranceTotal || 0,
+                                                        ).toFixed(2)}
+                                                      </div>
+                                                      <div>
+                                                        <strong>
+                                                          Guides total:
+                                                        </strong>{" "}
+                                                        {Number(
+                                                          s.guidesTotal || 0,
+                                                        ).toFixed(2)}
+                                                      </div>
+                                                      <div>
+                                                        <strong>
+                                                          Meals total:
+                                                        </strong>{" "}
+                                                        {Number(
+                                                          s.mealsTotal || 0,
+                                                        ).toFixed(2)}
+                                                      </div>
+                                                      <div>
+                                                        <strong>
+                                                          Extras total:
+                                                        </strong>{" "}
+                                                        {Number(
+                                                          s.extrasTotal || 0,
+                                                        ).toFixed(2)}
+                                                      </div>
+                                                    </div>
+
+                                                    <div className="mt-2">
+                                                      <Button
+                                                        size="sm"
+                                                        color="link"
+                                                        className="p-0"
+                                                        onClick={() =>
+                                                          openDayDetailsModal(
+                                                            r.dayNo,
+                                                          )
+                                                        }
+                                                      >
+                                                        View full details
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })()}
+                                            </PopoverBody>
+                                          </UncontrolledPopover>
+                                        </div>
+                                      </td>
                                       <td>{r.date || "-"}</td>
 
                                       <td>
@@ -1056,7 +1307,7 @@ const QuotationWizardInner = () => {
                                               onChangeRow(
                                                 idx,
                                                 "routeId",
-                                                opt ? opt.value : ""
+                                                opt ? opt.value : "",
                                               )
                                             }
                                             options={routeOptions}
@@ -1079,7 +1330,7 @@ const QuotationWizardInner = () => {
                                               onChangeRow(
                                                 idx,
                                                 "feeTypeId",
-                                                opt ? opt.value : ""
+                                                opt ? opt.value : "",
                                               )
                                             }
                                             options={transportFeeTypeOptions}
@@ -1102,7 +1353,7 @@ const QuotationWizardInner = () => {
                                               onChangeRow(
                                                 idx,
                                                 "vehicleTypeId",
-                                                opt ? opt.value : ""
+                                                opt ? opt.value : "",
                                               )
                                             }
                                             options={vehicleOptions}
@@ -1125,7 +1376,7 @@ const QuotationWizardInner = () => {
                                               onChangeRow(
                                                 idx,
                                                 "amount",
-                                                e.target.value
+                                                e.target.value,
                                               )
                                             }
                                             placeholder="0.00"
@@ -1135,15 +1386,28 @@ const QuotationWizardInner = () => {
                                       </td>
 
                                       <td>
-                                        <Button
-                                          size="sm"
-                                          color="secondary"
-                                          onClick={() =>
-                                            toggleDayExpand(r.dayNo)
-                                          }
-                                        >
-                                          {isOpen ? "Hide" : "Show"}
-                                        </Button>
+                                        <div className="d-flex justify-content-center gap-2 flex-wrap">
+                                          <Button
+                                            size="sm"
+                                            color="secondary"
+                                            onClick={() =>
+                                              toggleDayExpand(r.dayNo)
+                                            }
+                                          >
+                                            {isOpen ? "Hide" : "Show"}
+                                          </Button>
+
+                                          <Button
+                                            size="sm"
+                                            color="info"
+                                            outline
+                                            onClick={() =>
+                                              openDayDetailsModal(r.dayNo)
+                                            }
+                                          >
+                                            View
+                                          </Button>
+                                        </div>
                                       </td>
                                     </tr>
 
@@ -1226,12 +1490,12 @@ const QuotationWizardInner = () => {
                                                             p.ORIGINAL_PLACE_ID
                                                               ? {
                                                                   value: Number(
-                                                                    p.ORIGINAL_PLACE_ID
+                                                                    p.ORIGINAL_PLACE_ID,
                                                                   ),
                                                                   label:
                                                                     p.PLACE_NAME ||
                                                                     String(
-                                                                      p.ORIGINAL_PLACE_ID
+                                                                      p.ORIGINAL_PLACE_ID,
                                                                     ),
                                                                 }
                                                               : null;
@@ -1261,12 +1525,12 @@ const QuotationWizardInner = () => {
                                                                       ensureAllPlacesLoaded
                                                                     }
                                                                     onChange={(
-                                                                      opt
+                                                                      opt,
                                                                     ) =>
                                                                       onSelectPlace(
                                                                         idx,
                                                                         pIdx,
-                                                                        opt
+                                                                        opt,
                                                                       )
                                                                     }
                                                                   />
@@ -1287,14 +1551,14 @@ const QuotationWizardInner = () => {
                                                                       ""
                                                                     }
                                                                     onChange={(
-                                                                      e
+                                                                      e,
                                                                     ) =>
                                                                       onChangePlaceField(
                                                                         idx,
                                                                         pIdx,
                                                                         "ENTRANCE_FEES_PP",
                                                                         e.target
-                                                                          .value
+                                                                          .value,
                                                                       )
                                                                     }
                                                                     placeholder="0.00"
@@ -1309,11 +1573,11 @@ const QuotationWizardInner = () => {
                                                                       guideTypeOptions.find(
                                                                         (o) =>
                                                                           String(
-                                                                            o.value
+                                                                            o.value,
                                                                           ) ===
                                                                           String(
-                                                                            p.GUIDE_TYPE
-                                                                          )
+                                                                            p.GUIDE_TYPE,
+                                                                          ),
                                                                       )
                                                                         ?.label ||
                                                                       "-"}
@@ -1324,14 +1588,14 @@ const QuotationWizardInner = () => {
                                                                       p.GUIDE_TYPE
                                                                         ? guideTypeOptions.find(
                                                                             (
-                                                                              o
+                                                                              o,
                                                                             ) =>
                                                                               String(
-                                                                                o.value
+                                                                                o.value,
                                                                               ) ===
                                                                               String(
-                                                                                p.GUIDE_TYPE
-                                                                              )
+                                                                                p.GUIDE_TYPE,
+                                                                              ),
                                                                           ) ||
                                                                           null
                                                                         : null
@@ -1347,7 +1611,7 @@ const QuotationWizardInner = () => {
                                                                         : "Select guide type..."
                                                                     }
                                                                     onChange={(
-                                                                      opt
+                                                                      opt,
                                                                     ) =>
                                                                       onChangePlaceField(
                                                                         idx,
@@ -1355,7 +1619,7 @@ const QuotationWizardInner = () => {
                                                                         "GUIDE_TYPE",
                                                                         opt
                                                                           ? opt.value
-                                                                          : ""
+                                                                          : "",
                                                                       )
                                                                     }
                                                                     isDisabled={
@@ -1379,14 +1643,14 @@ const QuotationWizardInner = () => {
                                                                       ""
                                                                     }
                                                                     onChange={(
-                                                                      e
+                                                                      e,
                                                                     ) =>
                                                                       onChangePlaceField(
                                                                         idx,
                                                                         pIdx,
                                                                         "GUIDE_COST",
                                                                         e.target
-                                                                          .value
+                                                                          .value,
                                                                       )
                                                                     }
                                                                     placeholder="0.00"
@@ -1402,7 +1666,7 @@ const QuotationWizardInner = () => {
                                                                     onClick={() =>
                                                                       removePlaceRow(
                                                                         idx,
-                                                                        pIdx
+                                                                        pIdx,
                                                                       )
                                                                     }
                                                                   >
@@ -1412,7 +1676,7 @@ const QuotationWizardInner = () => {
                                                               ) : null}
                                                             </tr>
                                                           );
-                                                        }
+                                                        },
                                                       )
                                                     ) : (
                                                       <tr>
@@ -1493,18 +1757,18 @@ const QuotationWizardInner = () => {
                                                             ? restaurantsOptions.find(
                                                                 (o) =>
                                                                   String(
-                                                                    o.value
+                                                                    o.value,
                                                                   ) ===
                                                                   String(
-                                                                    m.RESAURANT_ID
-                                                                  )
+                                                                    m.RESAURANT_ID,
+                                                                  ),
                                                               ) || null
                                                             : null;
 
                                                         const mealTypeOptions =
                                                           m.RESAURANT_ID
                                                             ? mealTypeOptionsForRestaurant(
-                                                                m.RESAURANT_ID
+                                                                m.RESAURANT_ID,
                                                               )
                                                             : [];
 
@@ -1513,11 +1777,11 @@ const QuotationWizardInner = () => {
                                                             ? mealTypeOptions.find(
                                                                 (o) =>
                                                                   String(
-                                                                    o.value
+                                                                    o.value,
                                                                   ) ===
                                                                   String(
-                                                                    m.RESTAURANT_MEAL_TYPE_ID
-                                                                  )
+                                                                    m.RESTAURANT_MEAL_TYPE_ID,
+                                                                  ),
                                                               ) || null
                                                             : null;
 
@@ -1526,7 +1790,7 @@ const QuotationWizardInner = () => {
                                                           m.RESTAURANT_MEAL_TYPE_ID
                                                             ? mealOptionsForRestaurantType(
                                                                 m.RESAURANT_ID,
-                                                                m.RESTAURANT_MEAL_TYPE_ID
+                                                                m.RESTAURANT_MEAL_TYPE_ID,
                                                               )
                                                             : [];
 
@@ -1535,11 +1799,11 @@ const QuotationWizardInner = () => {
                                                             ? mealOptions.find(
                                                                 (o) =>
                                                                   String(
-                                                                    o.value
+                                                                    o.value,
                                                                   ) ===
                                                                   String(
-                                                                    m.ORIGINAL_MEAL_ID
-                                                                  )
+                                                                    m.ORIGINAL_MEAL_ID,
+                                                                  ),
                                                               ) || null
                                                             : null;
 
@@ -1573,7 +1837,7 @@ const QuotationWizardInner = () => {
                                                                     ensureMealsLookupLoaded
                                                                   }
                                                                   onChange={(
-                                                                    opt
+                                                                    opt,
                                                                   ) =>
                                                                     onChangeMeal(
                                                                       idx,
@@ -1581,7 +1845,7 @@ const QuotationWizardInner = () => {
                                                                       "RESAURANT_ID",
                                                                       opt
                                                                         ? opt.value
-                                                                        : ""
+                                                                        : "",
                                                                     )
                                                                   }
                                                                 />
@@ -1613,7 +1877,7 @@ const QuotationWizardInner = () => {
                                                                     !m.RESAURANT_ID
                                                                   }
                                                                   onChange={(
-                                                                    opt
+                                                                    opt,
                                                                   ) =>
                                                                     onChangeMeal(
                                                                       idx,
@@ -1621,7 +1885,7 @@ const QuotationWizardInner = () => {
                                                                       "RESTAURANT_MEAL_TYPE_ID",
                                                                       opt
                                                                         ? opt.value
-                                                                        : ""
+                                                                        : "",
                                                                     )
                                                                   }
                                                                 />
@@ -1654,7 +1918,7 @@ const QuotationWizardInner = () => {
                                                                     !m.RESTAURANT_MEAL_TYPE_ID
                                                                   }
                                                                   onChange={(
-                                                                    opt
+                                                                    opt,
                                                                   ) =>
                                                                     onChangeMeal(
                                                                       idx,
@@ -1662,7 +1926,7 @@ const QuotationWizardInner = () => {
                                                                       "ORIGINAL_MEAL_ID",
                                                                       opt
                                                                         ? opt.value
-                                                                        : ""
+                                                                        : "",
                                                                     )
                                                                   }
                                                                 />
@@ -1683,14 +1947,14 @@ const QuotationWizardInner = () => {
                                                                     ""
                                                                   }
                                                                   onChange={(
-                                                                    e
+                                                                    e,
                                                                   ) =>
                                                                     onChangeMeal(
                                                                       idx,
                                                                       mIdx,
                                                                       "TOTAL_AMOUNT_PP",
                                                                       e.target
-                                                                        .value
+                                                                        .value,
                                                                     )
                                                                   }
                                                                   placeholder="0.00"
@@ -1706,7 +1970,7 @@ const QuotationWizardInner = () => {
                                                                   onClick={() =>
                                                                     removeMealRow(
                                                                       idx,
-                                                                      mIdx
+                                                                      mIdx,
                                                                     )
                                                                   }
                                                                 >
@@ -1716,7 +1980,7 @@ const QuotationWizardInner = () => {
                                                             ) : null}
                                                           </tr>
                                                         );
-                                                      }
+                                                      },
                                                     )
                                                   ) : (
                                                     <tr>
@@ -1738,8 +2002,8 @@ const QuotationWizardInner = () => {
                                               </Table>
                                             </div>
 
-                                            {/* Extra Services remain as-is */}
-                                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                            {/* Extra Services UPDATED */}
+                                            {/* <div className="d-flex justify-content-between align-items-center mb-2">
                                               <h5 className="mb-0">
                                                 Extra Services
                                               </h5>
@@ -1755,14 +2019,14 @@ const QuotationWizardInner = () => {
                                                   + Add Service
                                                 </Button>
                                               ) : null}
-                                            </div>
+                                            </div> */}
 
-                                            <div className="table-responsive">
+                                            {/* <div className="table-responsive">
                                               <Table className="table table-sm table-bordered align-middle mb-0">
                                                 <thead className="table-light">
                                                   <tr>
-                                                    <th style={{ width: 220 }}>
-                                                      Extra Service ID
+                                                    <th style={{ width: 360 }}>
+                                                      Extra Service
                                                     </th>
                                                     <th style={{ width: 220 }}>
                                                       Cost PP
@@ -1778,84 +2042,114 @@ const QuotationWizardInner = () => {
                                                   {(r.extraServices || [])
                                                     .length ? (
                                                     (r.extraServices || []).map(
-                                                      (e, eIdx) => (
-                                                        <tr
-                                                          key={`${r.dayNo}-extra-${eIdx}`}
-                                                        >
-                                                          <td>
-                                                            {viewOnly ? (
-                                                              <span>
-                                                                {e.EXTRA_SERVICE_ID ??
-                                                                  "-"}
-                                                              </span>
-                                                            ) : (
-                                                              <Input
-                                                                type="number"
-                                                                value={
-                                                                  e.EXTRA_SERVICE_ID ??
-                                                                  ""
-                                                                }
-                                                                onChange={(
-                                                                  ev
-                                                                ) =>
-                                                                  onChangeExtraService(
-                                                                    idx,
-                                                                    eIdx,
-                                                                    "EXTRA_SERVICE_ID",
-                                                                    ev.target
-                                                                      .value
-                                                                  )
-                                                                }
-                                                                placeholder="Service ID"
-                                                              />
-                                                            )}
-                                                          </td>
-                                                          <td>
-                                                            {viewOnly ? (
-                                                              <span>
-                                                                {e.EXTRA_SERVICE_COST_PP ??
-                                                                  "-"}
-                                                              </span>
-                                                            ) : (
-                                                              <Input
-                                                                type="number"
-                                                                value={
-                                                                  e.EXTRA_SERVICE_COST_PP ??
-                                                                  ""
-                                                                }
-                                                                onChange={(
-                                                                  ev
-                                                                ) =>
-                                                                  onChangeExtraService(
-                                                                    idx,
-                                                                    eIdx,
-                                                                    "EXTRA_SERVICE_COST_PP",
-                                                                    ev.target
-                                                                      .value
-                                                                  )
-                                                                }
-                                                                placeholder="0.00"
-                                                              />
-                                                            )}
-                                                          </td>
-                                                          {!viewOnly ? (
+                                                      (e, eIdx) => {
+                                                        const selectedService =
+                                                          e.EXTRA_SERVICE_ID
+                                                            ? extraServicesOptions.find(
+                                                                (o) =>
+                                                                  String(
+                                                                    o.value,
+                                                                  ) ===
+                                                                  String(
+                                                                    e.EXTRA_SERVICE_ID,
+                                                                  ),
+                                                              ) || null
+                                                            : null;
+
+                                                        return (
+                                                          <tr
+                                                            key={`${r.dayNo}-extra-${eIdx}`}
+                                                          >
                                                             <td>
-                                                              <Button
-                                                                size="sm"
-                                                                color="danger"
-                                                                onClick={() =>
-                                                                  removeExtraServiceRow(
-                                                                    idx,
-                                                                    eIdx
-                                                                  )
-                                                                }
-                                                              >
-                                                                X
-                                                              </Button>
+                                                              {viewOnly ? (
+                                                                <span>
+                                                                  {e.EXTRA_SERVICE_NAME ||
+                                                                    selectedService?.label ||
+                                                                    e.EXTRA_SERVICE_ID ||
+                                                                    "-"}
+                                                                </span>
+                                                              ) : (
+                                                                <ThemeSelect
+                                                                  value={
+                                                                    selectedService
+                                                                  }
+                                                                  options={
+                                                                    extraServicesOptions
+                                                                  }
+                                                                  isClearable
+                                                                  isSearchable
+                                                                  placeholder={
+                                                                    loadingExtraServicesLookup
+                                                                      ? "Loading..."
+                                                                      : "Select service..."
+                                                                  }
+                                                                  onMenuOpen={
+                                                                    ensureExtraServicesLoaded
+                                                                  }
+                                                                  onChange={(
+                                                                    opt,
+                                                                  ) =>
+                                                                    onChangeExtraService(
+                                                                      idx,
+                                                                      eIdx,
+                                                                      "EXTRA_SERVICE_ID",
+                                                                      opt
+                                                                        ? opt.value
+                                                                        : "",
+                                                                    )
+                                                                  }
+                                                                />
+                                                              )}
                                                             </td>
-                                                          ) : null}
-                                                        </tr>
-                                                      )
+
+                                                            <td>
+                                                              {viewOnly ? (
+                                                                <span>
+                                                                  {e.EXTRA_SERVICE_COST_PP ??
+                                                                    "-"}
+                                                                </span>
+                                                              ) : (
+                                                                <Input
+                                                                  type="number"
+                                                                  value={
+                                                                    e.EXTRA_SERVICE_COST_PP ??
+                                                                    ""
+                                                                  }
+                                                                  onChange={(
+                                                                    ev,
+                                                                  ) =>
+                                                                    onChangeExtraService(
+                                                                      idx,
+                                                                      eIdx,
+                                                                      "EXTRA_SERVICE_COST_PP",
+                                                                      ev.target
+                                                                        .value,
+                                                                    )
+                                                                  }
+                                                                  placeholder="0.00"
+                                                                />
+                                                              )}
+                                                            </td>
+
+                                                            {!viewOnly ? (
+                                                              <td>
+                                                                <Button
+                                                                  size="sm"
+                                                                  color="danger"
+                                                                  onClick={() =>
+                                                                    removeExtraServiceRow(
+                                                                      idx,
+                                                                      eIdx,
+                                                                    )
+                                                                  }
+                                                                >
+                                                                  X
+                                                                </Button>
+                                                              </td>
+                                                            ) : null}
+                                                          </tr>
+                                                        );
+                                                      },
                                                     )
                                                   ) : (
                                                     <tr>
@@ -1876,7 +2170,7 @@ const QuotationWizardInner = () => {
                                                   )}
                                                 </tbody>
                                               </Table>
-                                            </div>
+                                            </div> */}
                                           </div>
                                         </Collapse>
                                       </td>
@@ -1898,8 +2192,384 @@ const QuotationWizardInner = () => {
                             </tbody>
                           </Table>
                         </div>
+                        {/* Step 1 - Day Details Modal (read-friendly, no dimming) */}
+                        <Modal
+                          isOpen={dayDetailsModalOpen}
+                          toggle={closeDayDetailsModal}
+                          size="xl"
+                          centered
+                          fade={false}
+                        >
+                          <ModalHeader toggle={closeDayDetailsModal}>
+                            {(() => {
+                              const row = (daysRows || []).find(
+                                (d) =>
+                                  Number(d?.dayNo) ===
+                                  Number(dayDetailsModalDayNo),
+                              );
+                              return row
+                                ? `Day ${row.dayNo} • ${row.date || "-"}`
+                                : "Day details";
+                            })()}
+                          </ModalHeader>
 
-                        {dimTable ? (
+                          <ModalBody>
+                            {(() => {
+                              const row = (daysRows || []).find(
+                                (d) =>
+                                  Number(d?.dayNo) ===
+                                  Number(dayDetailsModalDayNo),
+                              );
+                              if (!row) {
+                                return (
+                                  <Alert color="warning" className="mb-0">
+                                    Day record not found.
+                                  </Alert>
+                                );
+                              }
+
+                              const selectedRoute =
+                                routeOptions.find(
+                                  (o) =>
+                                    String(o.value) === String(row.routeId),
+                                ) || null;
+
+                              const selectedFeeType =
+                                transportFeeTypeOptions.find(
+                                  (o) =>
+                                    String(o.value) === String(row.feeTypeId),
+                                ) || null;
+
+                              const vehicleOptions = vehicleOptionsForFeeType(
+                                row.feeTypeId,
+                              );
+                              const selectedVehicle =
+                                vehicleOptions.find(
+                                  (o) =>
+                                    String(o.value) ===
+                                    String(row.vehicleTypeId),
+                                ) || null;
+
+                              const s = getDaySummary(row);
+
+                              return (
+                                <>
+                                  <Row className="g-3 mb-3">
+                                    <Col md={6}>
+                                      <Card className="mb-0">
+                                        <CardBody>
+                                          <div className="d-flex flex-column gap-2">
+                                            <div>
+                                              <strong>Route:</strong>{" "}
+                                              {selectedRoute?.label || "-"}
+                                            </div>
+                                            <div>
+                                              <strong>
+                                                Transportation Fee Type:
+                                              </strong>{" "}
+                                              {selectedFeeType?.label || "-"}
+                                            </div>
+                                            <div>
+                                              <strong>Vehicle Type:</strong>{" "}
+                                              {selectedVehicle?.label || "-"}
+                                            </div>
+                                            <div>
+                                              <strong>Amount:</strong>{" "}
+                                              {row.amount ?? "-"}
+                                            </div>
+                                          </div>
+                                        </CardBody>
+                                      </Card>
+                                    </Col>
+
+                                    <Col md={6}>
+                                      <Card className="mb-0">
+                                        <CardBody>
+                                          <div className="d-flex flex-wrap gap-2 mb-2">
+                                            <Badge color="secondary">
+                                              Places: {s.placesCount}
+                                            </Badge>
+                                            <Badge color="secondary">
+                                              Meals: {s.mealsCount}
+                                            </Badge>
+                                            <Badge color="secondary">
+                                              Extras: {s.extrasCount}
+                                            </Badge>
+                                          </div>
+
+                                          <div className="small text-muted">
+                                            Totals (per person):
+                                          </div>
+
+                                          <div className="d-flex flex-column gap-1">
+                                            <div>
+                                              <strong>Entrance:</strong>{" "}
+                                              {Number(
+                                                s.entranceTotal || 0,
+                                              ).toFixed(2)}
+                                            </div>
+                                            <div>
+                                              <strong>Guides:</strong>{" "}
+                                              {Number(
+                                                s.guidesTotal || 0,
+                                              ).toFixed(2)}
+                                            </div>
+                                            <div>
+                                              <strong>Meals:</strong>{" "}
+                                              {Number(
+                                                s.mealsTotal || 0,
+                                              ).toFixed(2)}
+                                            </div>
+                                            <div>
+                                              <strong>Extras:</strong>{" "}
+                                              {Number(
+                                                s.extrasTotal || 0,
+                                              ).toFixed(2)}
+                                            </div>
+                                          </div>
+                                        </CardBody>
+                                      </Card>
+                                    </Col>
+                                  </Row>
+
+                                  <Row className="g-3">
+                                    <Col lg={12}>
+                                      <Card className="mb-0">
+                                        <CardBody>
+                                          <div className="d-flex justify-content-between align-items-center mb-2">
+                                            <h5 className="mb-0">
+                                              Places, Guides and Entrance Fees
+                                            </h5>
+                                            <small className="text-muted">
+                                              {Array.isArray(row.places)
+                                                ? row.places.length
+                                                : 0}{" "}
+                                              items
+                                            </small>
+                                          </div>
+
+                                          {(row.places || []).length === 0 ? (
+                                            <Alert
+                                              color="secondary"
+                                              className="mb-0"
+                                            >
+                                              No places added.
+                                            </Alert>
+                                          ) : (
+                                            <div className="table-responsive">
+                                              <Table className="table table-sm table-bordered align-middle mb-0">
+                                                <thead className="table-light">
+                                                  <tr>
+                                                    <th
+                                                      style={{ minWidth: 220 }}
+                                                    >
+                                                      Place
+                                                    </th>
+                                                    <th style={{ width: 160 }}>
+                                                      Entrance (PP)
+                                                    </th>
+                                                    <th
+                                                      style={{ minWidth: 200 }}
+                                                    >
+                                                      Guide Type
+                                                    </th>
+                                                    <th style={{ width: 160 }}>
+                                                      Guide Cost
+                                                    </th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {(row.places || []).map(
+                                                    (p, i) => (
+                                                      <tr
+                                                        key={`p-${row.dayNo}-${i}`}
+                                                      >
+                                                        <td className="fw-semibold">
+                                                          {p?.PLACE_NAME || "-"}
+                                                        </td>
+                                                        <td>
+                                                          {p?.ENTRANCE_FEES_PP ??
+                                                            "-"}
+                                                        </td>
+                                                        <td>
+                                                          {p?.GUIDE_TYPE_NAME ||
+                                                            p?.GUIDE_TYPE ||
+                                                            "-"}
+                                                        </td>
+                                                        <td>
+                                                          {p?.GUIDE_COST ?? "-"}
+                                                        </td>
+                                                      </tr>
+                                                    ),
+                                                  )}
+                                                </tbody>
+                                              </Table>
+                                            </div>
+                                          )}
+                                        </CardBody>
+                                      </Card>
+                                    </Col>
+
+                                    <Col lg={12}>
+                                      <Card className="mb-0">
+                                        <CardBody>
+                                          <div className="d-flex justify-content-between align-items-center mb-2">
+                                            <h5 className="mb-0">Meals</h5>
+                                            <small className="text-muted">
+                                              {Array.isArray(row.meals)
+                                                ? row.meals.length
+                                                : 0}{" "}
+                                              items
+                                            </small>
+                                          </div>
+
+                                          {(row.meals || []).length === 0 ? (
+                                            <Alert
+                                              color="secondary"
+                                              className="mb-0"
+                                            >
+                                              No meals added.
+                                            </Alert>
+                                          ) : (
+                                            <div className="table-responsive">
+                                              <Table className="table table-sm table-bordered align-middle mb-0">
+                                                <thead className="table-light">
+                                                  <tr>
+                                                    <th
+                                                      style={{ minWidth: 220 }}
+                                                    >
+                                                      Restaurant
+                                                    </th>
+                                                    <th
+                                                      style={{ minWidth: 180 }}
+                                                    >
+                                                      Meal Type
+                                                    </th>
+                                                    <th
+                                                      style={{ minWidth: 260 }}
+                                                    >
+                                                      Description
+                                                    </th>
+                                                    <th style={{ width: 160 }}>
+                                                      Rate (PP)
+                                                    </th>
+                                                    <th style={{ width: 160 }}>
+                                                      Total (PP)
+                                                    </th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {(row.meals || []).map(
+                                                    (m, i) => (
+                                                      <tr
+                                                        key={`m-${row.dayNo}-${i}`}
+                                                      >
+                                                        <td className="fw-semibold">
+                                                          {m?.RESTUARANT_NAME ||
+                                                            "-"}
+                                                        </td>
+                                                        <td>
+                                                          {m?.RESTAURANT_MEAL_TYPE_NAME ||
+                                                            "-"}
+                                                        </td>
+                                                        <td
+                                                          style={{
+                                                            whiteSpace:
+                                                              "pre-wrap",
+                                                          }}
+                                                        >
+                                                          {m?.RESTAURANT_MEAL_DESCRIPTION ||
+                                                            "-"}
+                                                        </td>
+                                                        <td>
+                                                          {m?.RESTAURANT_MEAL_RATE_PP ??
+                                                            "-"}
+                                                        </td>
+                                                        <td>
+                                                          {m?.TOTAL_AMOUNT_PP ??
+                                                            "-"}
+                                                        </td>
+                                                      </tr>
+                                                    ),
+                                                  )}
+                                                </tbody>
+                                              </Table>
+                                            </div>
+                                          )}
+                                        </CardBody>
+                                      </Card>
+                                    </Col>
+
+                                    <Col lg={12}>
+                                      <Card className="mb-0">
+                                        {/* <CardBody>
+                                          <div className="d-flex justify-content-between align-items-center mb-2">
+                                            <h5 className="mb-0">
+                                              Extra Services
+                                            </h5>
+                                            <small className="text-muted">
+                                              {Array.isArray(row.extraServices)
+                                                ? row.extraServices.length
+                                                : 0}{" "}
+                                              items
+                                            </small>
+                                          </div>
+
+                                          {(row.extraServices || []).length ===
+                                          0 ? (
+                                            <Alert
+                                              color="secondary"
+                                              className="mb-0"
+                                            >
+                                              No extra services added.
+                                            </Alert>
+                                          ) : (
+                                            <div className="table-responsive">
+                                              <Table className="table table-sm table-bordered align-middle mb-0">
+                                                <thead className="table-light">
+                                                  <tr>
+                                                    <th
+                                                      style={{ minWidth: 260 }}
+                                                    >
+                                                      Service
+                                                    </th>
+                                                    <th style={{ width: 180 }}>
+                                                      Cost (PP)
+                                                    </th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {(
+                                                    row.extraServices || []
+                                                  ).map((e, i) => (
+                                                    <tr
+                                                      key={`e-${row.dayNo}-${i}`}
+                                                    >
+                                                      <td className="fw-semibold">
+                                                        {e?.EXTRA_SERVICE_NAME ||
+                                                          "-"}
+                                                      </td>
+                                                      <td>
+                                                        {e?.EXTRA_SERVICE_COST_PP ??
+                                                          "-"}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </Table>
+                                            </div>
+                                          )}
+                                        </CardBody> */}
+                                      </Card>
+                                    </Col>
+                                  </Row>
+                                </>
+                              );
+                            })()}
+                          </ModalBody>
+                        </Modal>
+
+                        {hasSubmittedStep1 && !isEditingStep1 ? (
                           <div className="text-muted mt-2">
                             <small>
                               Step 1 is submitted. Click <b>Edit Step 1</b> to
@@ -1912,21 +2582,34 @@ const QuotationWizardInner = () => {
                   </TabPane>
 
                   <TabPane tabId={2}>
-                    <Alert color="secondary" className="mb-0">
-                      Step 2 placeholder.
-                    </Alert>
+                    <QuotationStep2Accommodations
+                      qoutationId={id}
+                      value={step2Hotels}
+                      onChange={setStep2Hotels}
+                      numberOfDays={numberOfDays}
+                      arrivingDate={arrivingDate}
+                      departingDate={departingDate}
+                    />
                   </TabPane>
 
                   <TabPane tabId={3}>
-                    <Alert color="secondary" className="mb-0">
-                      Step 3 placeholder.
-                    </Alert>
+                    <QuotationStep3ExtraServices
+                      qoutationId={id} // ✅ same as Step 2
+                      onChange={() => {
+                        // optional
+                      }}
+                    />
                   </TabPane>
 
                   <TabPane tabId={4}>
-                    <Alert color="success" className="mb-0">
-                      Review placeholder.
-                    </Alert>
+                    <QuotationStep4Summary
+                      qoutationId={id}
+                      details={details}
+                      step1Options={step1Options}
+                      step1Submitted={step1Submitted}
+                      step2Value={step2Hotels}
+                      step3QuotationExtraServices={step3QuotationExtraServices}
+                    />
                   </TabPane>
                 </TabContent>
               </div>

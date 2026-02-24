@@ -184,6 +184,20 @@ export const GET_QOUTATION_STEP1_SUBMITTED = "/api/qoutations"; // use `${...}/$
 export const SAVE_QOUTATION_STEP1 = "/api/qoutations/step1"; // use `${...}/${id}/step1`
 
 
+// ===== QUOTATIONS - STEP 3 (Extra Services) =====
+export const EXTRA_SERVICES = "/api/extra-services";
+
+// dynamic: /api/qoutations/step3/:QOUTATION_ID/extra-services
+export const QUOTATION_STEP3_EXTRA_SERVICES_BASE = "/api/qoutations/step3";
+
+// dynamic delete: /api/qoutations/step3/extra-services/:EXTRA_SERVICE_ID
+export const QUOTATION_STEP3_EXTRA_SERVICE_DELETE_BASE =
+  "/api/qoutations/step3/extra-services";
+
+  export const QOUTATIONS_BASE = "/api/qoutations";
+
+
+
 
 
 

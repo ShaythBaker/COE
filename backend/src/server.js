@@ -17,7 +17,9 @@ const transportationRoutes = require("./modules/transportation/transportation.ro
 const placesRoutes = require("./modules/places/places.routes");
 const routesRoutes = require("./modules/routes/routes.routes");
 const qoutationsRoutes = require("./modules/qoutations/qoutations.routes");
+
 const restaurantsRoutes = require("./modules/restaurants/restaurants.routes"); 
+const extraServicesRoutes = require("./modules/extraServices/extraServices.routes");
 
 
 const app = express();
@@ -50,9 +52,10 @@ app.use("/api/clients", clientsRoutes);
 app.use("/api/guides", guidesRoutes);
 app.use("/api/transportation", transportationRoutes);
 app.use("/api/places", placesRoutes);
-app.use("/api/routes", routesRoutes);
+app.use("/api/routes", routesRoutes); 
 app.use("/api/qoutations", qoutationsRoutes);
 app.use('/api/restaurants', restaurantsRoutes); 
+app.use("/api/extra-services", extraServicesRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
@@ -60,7 +63,7 @@ app.get("/", (req, res) => {
 
 app.use((req, res) => {
   console.log(`[NOT FOUND] ${req.method} ${req.url}`);
-  res.status(404).json({ message: "Route not found" });
+  res.status(404).json({ message: "Route not found" }); 
 });
 
 const PORT = process.env.PORT || 5000;
