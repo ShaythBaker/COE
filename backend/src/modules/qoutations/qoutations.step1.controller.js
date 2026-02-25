@@ -87,7 +87,7 @@ async function fetchRoutesForCountry(req, countryId) {
   try {
     if (typeof fetch !== "function") {
       console.warn(
-        "fetch is not available in this Node version; cannot load routes"
+        "fetch is not available in this Node version; cannot load routes",
       );
       return [];
     }
@@ -175,11 +175,11 @@ async function getQoutationStep1(req, res) {
 
     const { QOUTATION_ID } = req.params;
     const qoutationIdNum = Number(QOUTATION_ID);
-    if (!qoutationIdNum) {
-      return res
-        .status(400)
-        .json({ message: "QOUTATION_ID must be a valid number" });
-    }
+    // if (!qoutationIdNum) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "QOUTATION_ID must be a valid number" });
+    // }
 
     // 1) Load base qoutation data from COE_TBL_QOUTATIONS
     const qoutations = await dbService.find(
@@ -206,7 +206,7 @@ async function getQoutationStep1(req, res) {
         ],
         limit: 1,
       },
-      companyId
+      companyId,
     );
 
     if (!qoutations || qoutations.length === 0) {
@@ -218,7 +218,7 @@ async function getQoutationStep1(req, res) {
     // 2) Calculate stay basic info (days/nights)
     const stayBasicInfo = calculateStayBasicInfo(
       q.QOUTATION_ARRIVING_DATE,
-      q.QOUTATION_DEPARTURING_DATE
+      q.QOUTATION_DEPARTURING_DATE,
     );
 
     // 3) Get client COUNTRY_ID from COE_TBL_CLIENTS, then fetch routes
@@ -248,7 +248,7 @@ async function getQoutationStep1(req, res) {
           ],
           limit: 1,
         },
-        companyId
+        companyId,
       );
 
       if (clients && clients.length > 0) {
@@ -289,7 +289,7 @@ async function getQoutationStep1(req, res) {
           ],
           orderBy: "TRANSPORTATION_FEE_TYPE_NAME ASC, VEHICLE_TYPE_NAME ASC",
         },
-        companyId
+        companyId,
       );
 
       if (fees && fees.length > 0) {
@@ -407,7 +407,7 @@ async function saveQoutationStep1(req, res) {
         fields: ["QOUTATION_ID", "COMPANY_ID"],
         limit: 1,
       },
-      companyId
+      companyId,
     );
 
     if (!existingQoutations || existingQoutations.length === 0) {
@@ -418,22 +418,22 @@ async function saveQoutationStep1(req, res) {
     await dbService.remove(
       QOUTATION_PLACES_TABLE,
       { QOUTATION_ID: qoutationIdNum },
-      companyId
+      companyId,
     );
     await dbService.remove(
       QOUTATION_MEALS_TABLE,
       { QOUTATION_ID: qoutationIdNum },
-      companyId
+      companyId,
     );
     await dbService.remove(
       QOUTATION_EXTRA_SERVICES_TABLE,
       { QOUTATION_ID: qoutationIdNum },
-      companyId
+      companyId,
     );
     await dbService.remove(
       QOUTATION_ROUTES_TABLE,
       { QOUTATION_ID: qoutationIdNum },
-      companyId
+      companyId,
     );
 
     const now = new Date();
@@ -471,7 +471,7 @@ async function saveQoutationStep1(req, res) {
         const routeResult = await dbService.insert(
           QOUTATION_ROUTES_TABLE,
           routeInsertData,
-          companyId
+          companyId,
         );
 
         const qoutationRouteId = routeResult.insertId;
@@ -503,7 +503,7 @@ async function saveQoutationStep1(req, res) {
             await dbService.insert(
               QOUTATION_PLACES_TABLE,
               placeInsertData,
-              companyId
+              companyId,
             );
           }
         }
@@ -531,7 +531,7 @@ async function saveQoutationStep1(req, res) {
             await dbService.insert(
               QOUTATION_MEALS_TABLE,
               mealInsertData,
-              companyId
+              companyId,
             );
           }
         }
@@ -558,7 +558,7 @@ async function saveQoutationStep1(req, res) {
             await dbService.insert(
               QOUTATION_EXTRA_SERVICES_TABLE,
               extraInsertData,
-              companyId
+              companyId,
             );
           }
         }
@@ -590,7 +590,7 @@ async function saveQoutationStep1(req, res) {
         ],
         orderBy: "ROUTE_DATE ASC, QOUTATION_ROUTE_ID ASC",
       },
-      companyId
+      companyId,
     );
 
     const placesFromView = await dbService.find(
@@ -616,7 +616,7 @@ async function saveQoutationStep1(req, res) {
           "UPDATED_ON",
         ],
       },
-      companyId
+      companyId,
     );
 
     const mealsFromView = await dbService.find(
@@ -644,7 +644,7 @@ async function saveQoutationStep1(req, res) {
           "UPDATED_BY",
         ],
       },
-      companyId
+      companyId,
     );
 
     const extraFromView = await dbService.find(
@@ -668,7 +668,7 @@ async function saveQoutationStep1(req, res) {
           "UPDATED_BY",
         ],
       },
-      companyId
+      companyId,
     );
 
     // Group children by ROUTE_ID (which = QOUTATION_ROUTE_ID)
@@ -678,12 +678,12 @@ async function saveQoutationStep1(req, res) {
       placesByRoute[p.ROUTE_ID].push(p);
     }
 
- const mealsByRoute = {};
-for (const m of mealsFromView) {
-  const rid = m.ROUTE_ID;              // ✅ use ROUTE_ID from view
-  if (!mealsByRoute[rid]) mealsByRoute[rid] = [];
-  mealsByRoute[rid].push(m);
-}
+    const mealsByRoute = {};
+    for (const m of mealsFromView) {
+      const rid = m.ROUTE_ID; // ✅ use ROUTE_ID from view
+      if (!mealsByRoute[rid]) mealsByRoute[rid] = [];
+      mealsByRoute[rid].push(m);
+    }
 
     const extrasByRoute = {};
     for (const e of extraFromView) {
@@ -812,7 +812,7 @@ async function getQoutationStep1Submitted(req, res) {
         fields: ["*"],
         limit: 1,
       },
-      companyId
+      companyId,
     );
 
     if (!qoutations || qoutations.length === 0) {
@@ -831,7 +831,7 @@ async function getQoutationStep1Submitted(req, res) {
         fields: ["*"], // SELECT *
         orderBy: "ROUTE_DATE ASC, QOUTATION_ROUTE_ID ASC",
       },
-      companyId
+      companyId,
     );
 
     // Places
@@ -843,7 +843,7 @@ async function getQoutationStep1Submitted(req, res) {
         },
         fields: ["*"], // SELECT *
       },
-      companyId
+      companyId,
     );
 
     // Meals
@@ -855,7 +855,7 @@ async function getQoutationStep1Submitted(req, res) {
         },
         fields: ["*"], // SELECT *
       },
-      companyId
+      companyId,
     );
 
     // Extra services
@@ -867,7 +867,7 @@ async function getQoutationStep1Submitted(req, res) {
         },
         fields: ["*"], // SELECT *
       },
-      companyId
+      companyId,
     );
 
     // 3) Group PLACES / MEALS / EXTRAS by ROUTE_ID
@@ -958,7 +958,6 @@ async function getQoutationStep1Submitted(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
-
 
 module.exports = {
   getQoutationStep1,
